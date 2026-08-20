@@ -1,0 +1,1815 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ヒトの体のつくりと運動</title>
+<style>
+:root{
+  --ink:#1f3446;
+  --ink2:#4a6377;
+  --paper:#eaf1f6;
+  --card:#ffffff;
+  --line:#d3e0ea;
+  --accent:#f5821f;
+  --accent-d:#d96a08;
+  --blue:#1e9ec4;
+  --skin:#ffe4cd;
+  --skinL:#f0bd99;
+  --bone:#fdf8ec;
+  --boneL:#c7b18b;
+  --mus:#f09277;
+  --musD:#cf5233;
+  --musPale:#f8cfc0;
+  --ok:#2aa26a;
+  --ng:#e2573f;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:"Hiragino Maru Gothic ProN","ヒラギノ丸ゴ ProN W4","BIZ UDPGothic","Yu Gothic Medium","游ゴシック Medium",YuGothic,"Meiryo",sans-serif;
+  background:var(--paper);color:var(--ink);
+  height:100dvh;overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+.app{height:100dvh;display:flex;flex-direction:column;max-width:1200px;margin:0 auto;padding:10px 12px 12px;gap:10px}
+
+/* ------- ヘッダー・タブ ------- */
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+h1{font-size:clamp(18px,2.4vw,26px);letter-spacing:.02em;white-space:nowrap}
+h1 .num{display:inline-grid;place-items:center;width:1.6em;height:1.6em;border-radius:50%;background:var(--blue);color:#fff;font-size:.8em;margin-right:.4em;vertical-align:.05em}
+nav{display:flex;gap:6px;flex:1;flex-wrap:wrap}
+.tab{
+  font:inherit;font-size:clamp(12px,1.4vw,16px);cursor:pointer;
+  border:2px solid var(--line);background:var(--card);color:var(--ink2);
+  padding:.45em 1em;border-radius:999px;transition:.15s;white-space:nowrap;
+}
+.tab:hover{border-color:var(--accent);color:var(--accent-d)}
+.tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 3px 0 var(--accent-d)}
+.tab:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+
+/* ------- レイアウト ------- */
+main{flex:1;min-height:0}
+.panel{display:none;height:100%;gap:12px}
+.panel.on{display:flex}
+.stage{
+  flex:1;min-width:0;background:var(--card);border:2px solid var(--line);border-radius:18px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px;position:relative;overflow:hidden;
+}
+.stage svg{height:100%;width:100%;max-height:100%;touch-action:none}
+.canvas{flex:1;min-height:0;width:100%;display:flex;align-items:center;justify-content:center}
+.note{flex:0 0 auto;width:100%;background:#f7fafc;border:2px solid var(--line);border-radius:14px;padding:8px 12px;margin-top:6px;max-height:36%;overflow:auto}
+.note h2{font-size:clamp(13px,1.5vw,17px);color:var(--accent-d);margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.note h2::before{content:"";width:9px;height:18px;border-radius:3px;background:var(--accent)}
+.note p{font-size:clamp(12px,1.4vw,16px);line-height:1.6}
+.limb{cursor:grab}
+.limb:active{cursor:grabbing}
+.limb:hover>.bo{stroke:var(--accent)}
+.gh{opacity:.42}
+.side{width:min(38%,380px);display:flex;flex-direction:column;gap:10px;min-height:0;overflow-y:auto}
+.card{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:12px 14px}
+.card h2{font-size:clamp(14px,1.6vw,18px);color:var(--accent-d);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.card h2::before{content:"";width:10px;height:20px;border-radius:3px;background:var(--accent)}
+.card p{font-size:clamp(13px,1.4vw,16px);line-height:1.7}
+.grow{flex:1;min-height:0;overflow:auto}
+
+/* ------- ボタン類 ------- */
+.chooser{display:flex;gap:8px}
+.chooser button{
+  flex:1;font:inherit;font-size:clamp(13px,1.5vw,17px);cursor:pointer;padding:.6em .2em;
+  border-radius:14px;border:2px solid var(--line);background:#fff;color:var(--ink2);transition:.15s;
+}
+.chooser button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.chooser button:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+
+/* ------- 関節さがし ------- */
+.jointdot{cursor:pointer;fill:#fff;stroke:var(--accent);stroke-width:3;transition:.2s}
+.jointdot:hover{fill:#ffe2c2}
+.jointdot.found{fill:var(--accent);stroke:#fff}
+.jlist{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.jlist li{list-style:none;font-size:clamp(12px,1.4vw,15px);padding:.35em .6em;border-radius:10px;background:#f1f5f8;color:#9db0bf;border:2px solid transparent}
+.jlist li.found{background:#fff3e6;color:var(--accent-d);border-color:var(--accent);font-weight:bold}
+.count{font-size:clamp(20px,3vw,30px);color:var(--accent-d);font-weight:bold}
+
+/* ------- スライダー ------- */
+.ctrl{display:flex;flex-direction:column;gap:8px}
+input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+.state{display:flex;gap:8px}
+.state>div{flex:1;border-radius:14px;padding:8px 10px;border:2px solid var(--line);text-align:center;line-height:1.4}
+.state>div>.lbl{font-size:clamp(11px,1.2vw,13px);color:var(--ink2)}
+.state>div>.val{font-size:clamp(16px,2.2vw,22px);font-weight:bold}
+.state .val{color:var(--musD)}
+.tag{display:inline-block;background:#eef6fa;color:var(--blue);border-radius:8px;padding:.1em .5em;font-size:.85em;margin-right:.3em}
+
+/* ------- クイズ ------- */
+#q{flex-direction:column;justify-content:flex-start;align-items:flex-start;padding:min(4vh,26px) min(4vw,30px);gap:14px;overflow:auto}
+.qhead{display:flex;justify-content:space-between;width:100%;align-items:center;color:var(--ink2);font-size:clamp(12px,1.4vw,15px)}
+.qtext{font-size:clamp(17px,2.4vw,26px);line-height:1.5;width:100%}
+.opts{display:flex;flex-direction:column;gap:10px;width:100%}
+.opt{
+  font:inherit;font-size:clamp(14px,1.8vw,20px);text-align:left;cursor:pointer;
+  padding:.7em 1em;border-radius:16px;border:2px solid var(--line);background:#fff;transition:.15s;
+}
+.opt:hover:not(:disabled){border-color:var(--accent);background:#fff8f1}
+.opt:disabled{cursor:default}
+.opt.correct{background:#e7f7ef;border-color:var(--ok);color:#14653e;font-weight:bold}
+.opt.wrong{background:#fdeeeb;border-color:var(--ng);color:#8f2d1c}
+.fb{font-size:clamp(14px,1.7vw,19px);line-height:1.6;width:100%;min-height:2.4em}
+.fb b{color:var(--accent-d)}
+.qbtn{font:inherit;font-size:clamp(14px,1.6vw,18px);cursor:pointer;align-self:flex-end;
+  background:var(--accent);color:#fff;border:none;border-radius:14px;padding:.6em 1.6em;box-shadow:0 3px 0 var(--accent-d)}
+.qbtn:disabled{opacity:.35;box-shadow:none;cursor:default}
+
+/* ------- SVG共通 ------- */
+.sk{fill:var(--skin);stroke:var(--skinL);stroke-width:2}
+.skl{stroke:var(--skin);stroke-linecap:round;fill:none}
+.bn{fill:var(--bone);stroke:var(--boneL);stroke-width:2}
+.bo{stroke:var(--boneL);stroke-linecap:round}
+.bi{stroke:var(--bone);stroke-linecap:round}
+.rib{fill:none;stroke:var(--boneL);stroke-width:3.4;stroke-linecap:round}
+.mfill{fill:var(--mus);stroke:var(--musD);stroke-width:1.6}
+.ml{stroke:var(--mus);stroke-linecap:round;fill:none}
+.mline{fill:none;stroke:var(--musD);stroke-width:1.6;opacity:.5;stroke-linecap:round}
+.layer{transition:opacity .25s}
+.cap{font-size:13px;fill:var(--ink2)}
+.jd{fill:#fff;stroke:var(--accent);stroke-width:2.5}
+.dm{stroke:var(--musD);stroke-width:1.2}
+/* ------- ○×えらび（動物） ------- */
+.row{display:flex;gap:8px;width:100%}
+.row>div{min-width:0;display:flex;align-items:center;justify-content:center}
+.stmt{display:flex;gap:9px;align-items:flex-start;border:2px solid var(--line);border-radius:14px;padding:8px 10px;margin:8px 0;cursor:pointer;font-size:clamp(12px,1.35vw,15px);line-height:1.5;transition:.15s}
+.stmt:hover{border-color:var(--accent)}
+.stmt.sel{background:#fff8f1;border-color:var(--accent)}
+.stmt.ok{background:#e7f7ef;border-color:var(--ok)}
+.stmt.ng{background:#fdeeeb;border-color:var(--ng)}
+.stmt.miss{border-color:var(--ok);border-style:dashed}
+.box{width:28px;height:28px;border:2.5px solid #4a90c2;border-radius:6px;display:grid;place-items:center;flex:none;font-size:19px;font-weight:bold;color:var(--ng)}
+.stmt.ok .box{color:var(--ok);border-color:var(--ok)}
+.stmt.miss .box{color:#9ccdb4;border-color:var(--ok)}
+/* ------- 言葉えらび（か・き） ------- */
+.blankrow{display:flex;align-items:center;gap:8px;margin:8px 0}
+.ymark{width:30px;height:30px;border-radius:50%;background:#ffe07a;border:2.5px solid #c99a1a;display:grid;place-items:center;font-size:16px;flex:none}
+.slot{flex:1;border:2px dashed var(--line);border-radius:12px;padding:.4em .6em;text-align:center;font-size:clamp(14px,1.8vw,19px);cursor:pointer;color:var(--ink)}
+.slot.active{border-color:var(--accent);border-style:solid;background:#fff8f1}
+.slot.ok{border-style:solid;border-color:var(--ok);background:#e7f7ef;color:#14653e;font-weight:bold}
+.slot.no{border-style:solid;border-color:var(--ng);background:#fdeeeb;color:#8f2d1c}
+.words{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;justify-content:center;background:#f4f8e9;border:2px solid #cfe0a8;border-radius:14px;padding:10px}
+.chip{font:inherit;font-size:clamp(13px,1.6vw,17px);cursor:pointer;border:2px solid #b8cf88;background:#fff;border-radius:12px;padding:.35em 1em}
+.chip:hover{border-color:var(--accent)}
+.chip.used{opacity:.3;pointer-events:none}
+.kmark{fill:#ffe07a;stroke:#c99a1a;stroke-width:2.5}
+.ktx{font-size:17px;fill:#5a4300}
+.klab{font-size:14px;fill:#1f3446}
+.steps{display:flex;gap:6px;font-size:clamp(11px,1.3vw,14px);color:var(--ink2);margin-bottom:6px}
+.steps span{padding:.1em .6em;border-radius:8px;background:#eef3f7}
+.steps span.now{background:var(--accent);color:#fff;font-weight:bold}
+/* ------- 部分マーク（サ〜チ） ------- */
+.pmark{cursor:pointer}
+.pmark circle{fill:#fff;stroke:#1f3446;stroke-width:2.5;transition:.15s}
+.pmark text{font-size:15px;fill:#1f3446;pointer-events:none}
+.pmark:hover circle{fill:#ffeede}
+.pmark.sel circle{fill:var(--accent);stroke:var(--accent)}
+.pmark.sel text{fill:#fff}
+.pmark.ok circle{fill:var(--ok);stroke:var(--ok)}
+.pmark.ok text{fill:#fff}
+.pmark.ng circle{fill:var(--ng);stroke:var(--ng)}
+.pmark.ng text{fill:#fff}
+.pmark.miss circle{stroke:var(--ok);stroke-width:4;stroke-dasharray:5 4}
+.ldr{stroke:#9db0bf;stroke-width:1.4}
+.plab{font-size:15px;fill:#1f3446}
+.res{font-size:clamp(12px,1.4vw,15px);line-height:1.6;margin-top:6px}
+.res b{color:var(--accent-d)}
+/* ------- きん肉カード（あ・い） ------- */
+.mrow{display:flex;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap}
+.mark{width:30px;height:30px;border-radius:50%;border:2.5px solid var(--ink);display:grid;place-items:center;font-size:16px;flex:none;background:#fff}
+.mname{font-size:clamp(11px,1.3vw,14px);color:var(--ink2);flex:1;min-width:5em}
+.mstate{font-size:clamp(16px,2.1vw,22px);font-weight:bold;color:var(--musD);min-width:4em;text-align:center}
+.mchoice{display:none;gap:6px}
+#mArea.hide .mchoice{display:flex}
+#mArea.hide .mstate{color:#b9c7d2}
+.mchoice button{font:inherit;font-size:clamp(11px,1.3vw,14px);cursor:pointer;border:2px solid var(--line);background:#fff;border-radius:11px;padding:.3em .8em;transition:.15s}
+.mchoice button:hover{border-color:var(--accent)}
+.mchoice button.ok{background:#e7f7ef;border-color:var(--ok);color:#14653e;font-weight:bold}
+.mchoice button.no{background:#fdeeeb;border-color:var(--ng);color:#8f2d1c}
+.mini{font:inherit;font-size:clamp(11px,1.3vw,14px);cursor:pointer;margin-top:4px;border:2px solid var(--line);background:#fff;border-radius:11px;padding:.4em 1em;color:var(--ink2)}
+.mini[aria-pressed="true"]{background:var(--blue);border-color:var(--blue);color:#fff}
+.walkrow{display:flex;gap:8px;margin-top:8px}
+.walkrow .sp{flex:1}
+.walkrow .mini{flex:1;margin-top:0}
+/* ------- うでのしくみ テスト（大問4） ------- */
+[hidden]{display:none!important}
+.dim{opacity:.4;pointer-events:none}
+.stack{display:flex;flex-direction:column;gap:10px;min-height:0}
+.cpick circle{fill:none;stroke:#1e9ec4;stroke-width:2.5;cursor:pointer;pointer-events:all;transition:.15s}
+.cpick text{font-size:16px;fill:#1f3446}
+.cpick:hover circle{stroke:var(--accent)}
+.cpick.sel circle{stroke:var(--accent);stroke-width:5}
+.cpick.ok circle{stroke:var(--ok);stroke-width:5}
+.cpick.ng circle{stroke:var(--ng);stroke-width:5}
+.cpick.miss circle{stroke:var(--ok);stroke-width:4;stroke-dasharray:5 4}
+.fj{fill:var(--accent);stroke:#fff;stroke-width:1}
+.sentence{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:clamp(13px,1.5vw,17px);margin:6px 0}
+.sentence .slot{flex:0 0 auto;min-width:6.5em}
+#pc .note{max-height:none}
+#pc .note p{height:3.2em;overflow:auto}
+/* ------- きん肉ゲージ ------- */
+.gauge{display:flex;align-items:center;gap:6px;margin:3px 0}
+.gauge .gl{font-size:clamp(10px,1.2vw,13px);color:var(--ink2);flex:none;min-width:4.2em}
+.bar{flex:1;height:13px;border-radius:7px;background:#eef3f7;border:1px solid var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--mus);border-radius:7px;transition:.25s}
+#mArea.hide .gauge{display:none}
+/* ------- もけい ------- */
+.wood{fill:#e6c79b;stroke:#b0834c;stroke-width:2}
+.pin{fill:#fff;stroke:var(--accent);stroke-width:3.5}
+.mdlLab{font-size:15px;fill:#1f3446}
+.sub{font-size:clamp(11px,1.3vw,14px);color:var(--ink2);margin:10px 0 5px}
+/* ------- 体でためそう ------- */
+.parts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.parts button{font:inherit;font-size:clamp(13px,1.5vw,17px);cursor:pointer;padding:.55em .2em;border-radius:14px;border:2px solid var(--line);background:#fff;color:var(--ink2);transition:.15s}
+.parts button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.parts button.done::after{content:" ✓";color:var(--ok);font-weight:bold}
+.parts button[aria-pressed="true"].done::after{color:#9ff0c8}
+.mission{background:#fff8f1;border:2px solid var(--accent);border-radius:14px;padding:10px 12px;font-size:clamp(13px,1.5vw,16px);line-height:1.6;margin-top:6px}
+.doneBtn{font:inherit;font-size:clamp(13px,1.5vw,16px);cursor:pointer;margin-top:8px;border:2px solid var(--ok);background:#fff;color:#14653e;border-radius:12px;padding:.45em 1.3em}
+.doneBtn[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:#fff}
+.locdot{fill:var(--accent);stroke:#fff;stroke-width:2}
+.stick{stroke:#b6c6d2;stroke-width:6;stroke-linecap:round;fill:none}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:820px){
+  .panel{flex-direction:column}
+  .side{width:100%;flex-direction:row;flex-wrap:wrap}
+  .side .card{flex:1;min-width:180px}
+  .side .stack{flex:2;min-width:220px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1><span class="num">7</span>ヒトの体のつくりと運動</h1>
+    <nav role="tablist">
+      <button class="tab" role="tab" data-t="a" aria-selected="true">1 体のつくり</button>
+      <button class="tab" role="tab" data-t="b" aria-selected="false">2 関節さがし</button>
+      <button class="tab" role="tab" data-t="c" aria-selected="false">3 うでのしくみ</button>
+      <button class="tab" role="tab" data-t="d" aria-selected="false">4 動物とくらべる</button>
+      <button class="tab" role="tab" data-t="f" aria-selected="false">5 体でためそう</button>
+      <button class="tab" role="tab" data-t="e" aria-selected="false">6 たしかめよう</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- 1 体のつくり -->
+    <section class="panel on" id="pa" role="tabpanel">
+      <div class="stage">
+        <div class="canvas" id="stageA"></div>
+        <div class="note"><h2 id="aTitle">からだ</h2><p id="aText"></p></div>
+      </div>
+      <div class="side">
+        <div class="card">
+          <h2>モードをえらぶ</h2>
+          <div class="chooser" id="modeA">
+            <button data-m="look" aria-pressed="true">しらべる</button>
+            <button data-m="quiz" aria-pressed="false">テストにちょうせん</button>
+          </div>
+        </div>
+        <div class="card" id="aLookBox">
+          <h2>切りかえてみよう</h2>
+          <div class="chooser" id="layerA">
+            <button data-l="skin" aria-pressed="true">からだ</button>
+            <button data-l="bone" aria-pressed="false">ほね</button>
+            <button data-l="mus" aria-pressed="false">きん肉</button>
+            <button data-l="move" aria-pressed="false">関節</button>
+          </div>
+          <button class="mini" id="btnResetPose" hidden>もとのしせいにもどす</button>
+        </div>
+        <div class="card" id="aQuizBox" hidden>
+          <div class="steps" id="aqSteps"><span>①名前</span><span>②曲がる部分</span><span>③はたらき</span></div>
+          <h2 id="aqTitle"></h2>
+          <p id="aqText"></p>
+          <div id="aqBody"></div>
+          <div class="chooser" style="margin-top:10px">
+            <button id="aqCheck">答え合わせ</button>
+            <button id="aqNext">つぎへ</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 関節さがし -->
+    <section class="panel" id="pb" role="tabpanel">
+      <div class="stage">
+        <div class="canvas" id="stageB"></div>
+        <div class="note"><h2 id="bTitle">えらんでみよう</h2><p id="bText">点をタップすると、名前とせつめいが出ます。</p></div>
+      </div>
+      <div class="side">
+        <div class="card">
+          <h2>体が曲がるところは？</h2>
+          <p>ほねの図のオレンジの点をタップして、曲がるところをさがそう。</p>
+          <p style="margin-top:6px">見つけた数 <span class="count"><span id="bCount">0</span>／8</span></p>
+        </div>
+        <div class="card grow">
+          <ul class="jlist" id="bList"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 うでのしくみ -->
+    <section class="panel" id="pc" role="tabpanel">
+      <div class="stage">
+        <div class="canvas" id="stageC"></div>
+        <div class="note"><h2 id="cTitle">わかったこと</h2><p id="cText"></p></div>
+      </div>
+      <div class="side">
+        <div class="card">
+          <h2>モードをえらぶ</h2>
+          <div class="chooser" id="modeC">
+            <button data-m="look" aria-pressed="true">しらべる</button>
+            <button data-m="model" aria-pressed="false">もけい</button>
+            <button data-m="quiz" aria-pressed="false">テスト</button>
+          </div>
+        </div>
+        <div id="cLookBox" class="stack">
+        <div class="card ctrl">
+          <h2>うでを動かしてみよう</h2>
+          <input type="range" id="angle" min="0" max="130" value="0" step="1" aria-label="うでの曲げぐあい">
+          <div class="chooser">
+            <button id="btnStraight">のばす</button>
+            <button id="btnBend">曲げる</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>きん肉のようす</h2>
+          <div id="mArea">
+            <div class="mrow">
+              <span class="mark">あ</span><span class="mname">内側のきん肉</span>
+              <span class="mstate" id="stA">ゆるむ</span>
+              <span class="mchoice" data-m="a"><button data-v="ちぢむ">ちぢむ</button><button data-v="ゆるむ">ゆるむ</button></span>
+            </div>
+            <div class="gauge"><span class="gl">あ ながさ</span><span class="bar"><i id="gAL"></i></span></div>
+            <div class="gauge"><span class="gl">あ ふとさ</span><span class="bar"><i id="gAT"></i></span></div>
+            <div class="mrow">
+              <span class="mark">い</span><span class="mname">外側のきん肉</span>
+              <span class="mstate" id="stB">ちぢむ</span>
+              <span class="mchoice" data-m="b"><button data-v="ちぢむ">ちぢむ</button><button data-v="ゆるむ">ゆるむ</button></span>
+            </div>
+            <div class="gauge"><span class="gl">い ながさ</span><span class="bar"><i id="gBL"></i></span></div>
+            <div class="gauge"><span class="gl">い ふとさ</span><span class="bar"><i id="gBT"></i></span></div>
+          </div>
+          <button class="mini" id="btnHide" aria-pressed="false">答えをかくして問題にする</button>
+        </div>
+        </div>
+        <div class="card" id="cModelBox" hidden>
+          <h2>きん肉をちぢめてみよう</h2>
+          <div class="chooser" id="mdlBtns">
+            <button data-k="a">あ をちぢめる</button>
+            <button data-k="b">い をちぢめる</button>
+          </div>
+          <p class="sub">ためしてみよう（もし〜がなかったら）</p>
+          <div class="chooser" id="mdlFail">
+            <button data-f="none" aria-pressed="true">ふつう</button>
+            <button data-f="joint" aria-pressed="false">関節なし</button>
+            <button data-f="mus" aria-pressed="false">きん肉なし</button>
+          </div>
+        </div>
+        <div class="card" id="cQuizBox" hidden>
+          <div class="steps" id="cqSteps"><span>①きん肉</span><span>②細かい動き</span><span>③わけ</span></div>
+          <h2 id="cqTitle"></h2>
+          <p id="cqText"></p>
+          <div id="cqBody"></div>
+          <div class="chooser" style="margin-top:10px">
+            <button id="cqCheck">答え合わせ</button>
+            <button id="cqNext">つぎへ</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 動物とくらべる -->
+    <section class="panel" id="pd" role="tabpanel">
+      <div class="stage">
+        <div class="canvas row">
+          <div id="stageD1"></div>
+          <div id="stageD2"></div>
+        </div>
+        <div class="note"><h2 id="dTitle">ほね</h2><p id="dText"></p></div>
+      </div>
+      <div class="side">
+        <div class="card">
+          <h2>モードをえらぶ</h2>
+          <div class="chooser" id="modeD">
+            <button data-m="look" aria-pressed="true">しらべる</button>
+            <button data-m="quiz" aria-pressed="false">テストにちょうせん</button>
+          </div>
+        </div>
+        <div class="card" id="dLookBox">
+          <h2>切りかえてみよう</h2>
+          <div class="chooser" id="layerD">
+            <button data-l="bone" aria-pressed="true">ほね</button>
+            <button data-l="mus" aria-pressed="false">きん肉</button>
+            <button data-l="move" aria-pressed="false">うごかす</button>
+          </div>
+          <div class="walkrow" id="walkRow" hidden>
+            <span class="sp"></span><span class="sp"></span>
+            <button class="mini" id="btnWalk" aria-pressed="false">歩かせる</button>
+          </div>
+        </div>
+        <div class="card grow" id="dQuizBox" hidden>
+          <h2>正しいもの2つに○</h2>
+          <div id="dStmts"></div>
+          <div class="chooser">
+            <button id="dCheck">答え合わせ</button><button id="dReset">もう一度</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 体でためそう -->
+    <section class="panel" id="pf" role="tabpanel">
+      <div class="stage">
+        <div class="canvas" id="stageF"></div>
+        <div class="note"><h2 id="fTitle">ひじ</h2><p id="fText"></p></div>
+      </div>
+      <div class="side">
+        <div class="card">
+          <h2>どこを見る？</h2>
+          <div class="parts" id="partBtns"></div>
+        </div>
+        <div class="card grow">
+          <h2>やってみよう <span class="count" style="font-size:clamp(15px,1.8vw,20px)"><span id="fCount">0</span>／5</span></h2>
+          <div class="mission" id="fMission"></div>
+          <button class="doneBtn" id="fDone" aria-pressed="false">できた！</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 たしかめよう -->
+    <section class="panel" id="pe" role="tabpanel" style="flex-direction:column">
+      <div class="stage" id="q" style="align-items:flex-start">
+        <div class="qhead"><span id="qNo"></span><span id="qScore"></span></div>
+        <div class="qtext" id="qText"></div>
+        <div class="opts" id="qOpts"></div>
+        <div class="fb" id="qFb"></div>
+        <button class="qbtn" id="qNext" disabled>つぎへ</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>Array.prototype.slice.call(r.querySelectorAll(s));
+
+/* ============ ヒトの体 SVG ============ */
+function bone(x1,y1,x2,y2,w){w=w||13;
+  return `<line class="bo" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke-width="${w}"/>`+
+         `<line class="bi" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke-width="${Math.max(w-5,2)}"/>`;
+}
+function handBones(cx,cy,dir){
+  let s=`<ellipse class="bn" cx="${cx}" cy="${cy}" rx="11" ry="9"/>`;
+  for(let i=0;i<4;i++){s+=bone(cx-6+i*4,cy+4,cx-8+i*5.5,cy+22,5);}
+  s+=bone(cx,cy+2,cx+dir*13,cy+12,5);
+  return s;
+}
+function humanSVG(joints){
+  let spine='',ribs='';
+  for(let i=0;i<9;i++) spine+=`<rect class="bn" x="143" y="${90+i*12}" width="14" height="9" rx="4"/>`;
+  for(let i=0;i<6;i++){
+    const y=106+i*11, sp=40-i*3.2, dy=17;
+    ribs+=`<path class="rib" d="M147,${y} C ${147-sp*0.7},${y-3} ${147-sp},${y+5} ${147-sp*0.8},${y+dy}"/>`;
+    ribs+=`<path class="rib" d="M153,${y} C ${153+sp*0.7},${y-3} ${153+sp},${y+5} ${153+sp*0.8},${y+dy}"/>`;
+  }
+  const skin=`
+   <g class="layer skinL">
+    <line class="skl" x1="108" y1="102" x2="96" y2="172" stroke-width="27"/>
+    <line class="skl" x1="96" y1="172" x2="86" y2="244" stroke-width="23"/>
+    <ellipse class="sk" cx="82" cy="260" rx="13" ry="17"/>
+    <line class="skl" x1="192" y1="102" x2="204" y2="172" stroke-width="27"/>
+    <line class="skl" x1="204" y1="172" x2="214" y2="244" stroke-width="23"/>
+    <ellipse class="sk" cx="218" cy="260" rx="13" ry="17"/>
+    <line class="skl" x1="130" y1="232" x2="126" y2="330" stroke-width="36"/>
+    <line class="skl" x1="126" y1="330" x2="121" y2="404" stroke-width="27"/>
+    <ellipse class="sk" cx="119" cy="416" rx="15" ry="9"/>
+    <line class="skl" x1="170" y1="232" x2="174" y2="330" stroke-width="36"/>
+    <line class="skl" x1="174" y1="330" x2="179" y2="404" stroke-width="27"/>
+    <ellipse class="sk" cx="181" cy="416" rx="15" ry="9"/>
+    <rect class="sk" x="140" y="66" width="20" height="22" rx="9"/>
+    <rect class="sk" x="105" y="84" width="90" height="94" rx="28"/>
+    <rect class="sk" x="113" y="160" width="74" height="80" rx="24"/>
+    <ellipse class="sk" cx="150" cy="42" rx="28" ry="34"/>
+   </g>`;
+  const bones=`
+   <g class="layer boneL">
+    <ellipse class="bn" cx="150" cy="40" rx="26" ry="30"/>
+    <path class="bn" d="M131 58 q19 20 38 0 v9 q-19 15 -38 0 z"/>
+    <rect class="bn" x="143" y="72" width="14" height="7" rx="3"/>
+    <rect class="bn" x="143" y="81" width="14" height="7" rx="3"/>
+    ${spine}
+    <rect class="bn" x="144" y="104" width="12" height="52" rx="5"/>
+    ${ribs}
+    <path class="bo" stroke-width="7" d="M150 96 q-22 2 -42 10" fill="none"/>
+    <path class="bo" stroke-width="7" d="M150 96 q22 2 42 10" fill="none"/>
+    ${bone(108,106,96,174,15)}
+    ${bone(192,106,204,174,15)}
+    ${bone(94,178,86,244,9)}${bone(102,178,94,244,9)}
+    ${bone(206,178,214,244,9)}${bone(198,178,206,244,9)}
+    ${handBones(84,254,-1)}
+    ${handBones(216,254,1)}
+    <path class="bn" d="M116,204 C107,228 112,247 127,251 C141,255 147,240 150,231 C153,240 159,255 173,251 C188,247 193,228 184,204 C170,197 130,197 116,204 Z"/>
+    ${bone(130,240,126,332,17)}
+    ${bone(170,240,174,332,17)}
+    ${bone(125,338,121,406,12)}${bone(133,338,129,406,7)}
+    ${bone(175,338,179,406,12)}${bone(167,338,171,406,7)}
+    <ellipse class="bn" cx="118" cy="414" rx="15" ry="8"/>
+    <ellipse class="bn" cx="182" cy="414" rx="15" ry="8"/>
+    <circle class="bn" cx="108" cy="106" r="13"/><circle class="bn" cx="192" cy="106" r="13"/>
+    <circle class="bn" cx="98" cy="176" r="11"/><circle class="bn" cx="202" cy="176" r="11"/>
+    <circle class="bn" cx="128" cy="238" r="11"/><circle class="bn" cx="172" cy="238" r="11"/>
+    <circle class="bn" cx="126" cy="335" r="12"/><circle class="bn" cx="174" cy="335" r="12"/>
+   </g>`;
+  const mus=`
+   <g class="layer musL">
+    <line class="ml" x1="108" y1="104" x2="97" y2="170" stroke-width="24"/>
+    <line class="ml" x1="97" y1="172" x2="88" y2="240" stroke-width="19"/>
+    <line class="ml" x1="192" y1="104" x2="203" y2="170" stroke-width="24"/>
+    <line class="ml" x1="203" y1="172" x2="212" y2="240" stroke-width="19"/>
+    <line class="ml" x1="130" y1="234" x2="126" y2="328" stroke-width="33"/>
+    <line class="ml" x1="126" y1="330" x2="122" y2="402" stroke-width="24"/>
+    <line class="ml" x1="170" y1="234" x2="174" y2="328" stroke-width="33"/>
+    <line class="ml" x1="174" y1="330" x2="178" y2="402" stroke-width="24"/>
+    <rect class="mfill" x="109" y="88" width="82" height="88" rx="26"/>
+    <rect class="mfill" x="117" y="162" width="66" height="72" rx="22"/>
+    <rect class="mfill" x="141" y="68" width="18" height="20" rx="8"/>
+    <ellipse class="mfill" cx="108" cy="104" rx="17" ry="15"/>
+    <ellipse class="mfill" cx="192" cy="104" rx="17" ry="15"/>
+    <ellipse class="mfill" cx="134" cy="112" rx="19" ry="15"/>
+    <ellipse class="mfill" cx="166" cy="112" rx="19" ry="15"/>
+    <path class="mline" d="M150 132 v58 M132 142 h36 M132 158 h36 M132 174 h36"/>
+    <path class="mline" d="M104 122 q-6 24 -3 44 M196 122 q6 24 3 44"/>
+    <path class="mline" d="M132 250 q-6 40 -3 70 M168 250 q6 40 3 70"/>
+    <path class="mline" d="M124 348 q-4 24 -1 44 M176 348 q4 24 1 44"/>
+   </g>`;
+  let dots='', vw=300, vx=0;
+  if(joints==='find'){
+    JOINTS.forEach(function(j,i){ j.pos.forEach(function(p){
+      dots+=`<circle class="jointdot" data-j="${i}" cx="${p[0]}" cy="${p[1]}" r="9"/>`;});
+    });
+  }else if(joints==='kaki'){
+    vw=364; vx=-64;
+    dots+=`<line class="ldr" x1="-6" y1="140" x2="100" y2="143"/>`+
+      `<line class="ldr" x1="-6" y1="236" x2="90" y2="182"/>`+
+      `<circle cx="98" cy="176" r="17" fill="none" stroke="#1f3446" stroke-width="2.5"/>`+
+      `<circle class="kmark" cx="-22" cy="140" r="15"/><text class="ktx" x="-22" y="146" text-anchor="middle">か</text>`+
+      `<text class="klab" x="-56" y="172">かたいところ</text>`+
+      `<circle class="kmark" cx="-22" cy="236" r="15"/><text class="ktx" x="-22" y="242" text-anchor="middle">き</text>`+
+      `<text class="klab" x="-60" y="268">曲げられるところ</text>`;
+  }else if(joints==='test'){
+    vw=392;
+    PARTS.forEach(function(q,i){
+      dots+=`<line class="ldr" x1="${q.pos[0]}" y1="${q.pos[1]}" x2="${q.lab[0]-8}" y2="${q.lab[1]-5}"/>`;
+    });
+    PARTS.forEach(function(q,i){
+      dots+=`<g class="pmark" data-p="${i}"><circle cx="${q.pos[0]}" cy="${q.pos[1]}" r="14"/>`+
+            `<text x="${q.pos[0]}" y="${q.pos[1]+5}" text-anchor="middle">${q.k}</text></g>`+
+            `<text class="plab" x="${q.lab[0]}" y="${q.lab[1]}">${q.n}</text>`;
+    });
+  }
+  return `<svg viewBox="${vx} 0 ${vw} 440" xmlns="http://www.w3.org/2000/svg">${skin}${bones}${mus}${dots}</svg>`;
+}
+
+/* ---- つまんで動かせるほね ---- */
+function puppetSVG(marks){
+  const M=function(id){return (marks&&marks[id])?marks[id]:'';};
+  const gh=function(x1,y1,x2,y2,w){return `<line class="skl gh" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke-width="${w}"/>`;};
+  let spine='',ribs='';
+  for(let i=0;i<9;i++) spine+=`<rect class="bn" x="143" y="${90+i*12}" width="14" height="9" rx="4"/>`;
+  for(let i=0;i<6;i++){
+    const y=106+i*11, sp=40-i*3.2;
+    ribs+=`<path class="rib" d="M147,${y} C ${147-sp*0.7},${y-3} ${147-sp},${y+5} ${147-sp*0.8},${y+17}"/>`;
+    ribs+=`<path class="rib" d="M153,${y} C ${153+sp*0.7},${y-3} ${153+sp},${y+5} ${153+sp*0.8},${y+17}"/>`;
+  }
+  const torso=`<g>
+    <rect class="sk gh" x="140" y="66" width="20" height="22" rx="9"/>
+    <rect class="sk gh" x="105" y="84" width="90" height="94" rx="28"/>
+    <rect class="sk gh" x="113" y="160" width="74" height="80" rx="24"/>
+    <ellipse class="sk gh" cx="150" cy="42" rx="28" ry="34"/>
+    <ellipse class="bn" cx="150" cy="40" rx="26" ry="30"/>
+    <path class="bn" d="M131 58 q19 20 38 0 v9 q-19 15 -38 0 z"/>
+    <rect class="bn" x="143" y="72" width="14" height="7" rx="3"/>
+    <rect class="bn" x="143" y="81" width="14" height="7" rx="3"/>
+    ${spine}
+    <rect class="bn" x="144" y="104" width="12" height="52" rx="5"/>
+    ${ribs}
+    <path class="bo" stroke-width="7" fill="none" d="M150 96 q-22 2 -42 10"/>
+    <path class="bo" stroke-width="7" fill="none" d="M150 96 q22 2 42 10"/>
+    <path class="bn" d="M116,204 C107,228 112,247 127,251 C141,255 147,240 150,231 C153,240 159,255 173,251 C188,247 193,228 184,204 C170,197 130,197 116,204 Z"/>
+  </g>`;
+  function arm(L){
+    const m = L ? {S:[108,106],E:[98,176],W:[88,244],H:[84,256],dir:-1,rS:[-40,170],rE:[-150,6]}
+                : {S:[192,106],E:[202,176],W:[212,244],H:[216,256],dir:1,rS:[-170,40],rE:[-6,150]};
+    const iu=L?'armLu':'armRu', il=L?'armLl':'armRl';
+    return `<g class="limb" data-id="${iu}" data-cx="${m.S[0]}" data-cy="${m.S[1]}" data-min="${m.rS[0]}" data-max="${m.rS[1]}">
+      ${gh(m.S[0],m.S[1],m.E[0],m.E[1],27)}
+      ${bone(m.S[0],m.S[1],m.E[0],m.E[1],15)}
+      <circle class="bn" cx="${m.S[0]}" cy="${m.S[1]}" r="13"/>
+      <g class="limb" data-id="${il}" data-cx="${m.E[0]}" data-cy="${m.E[1]}" data-min="${m.rE[0]}" data-max="${m.rE[1]}">
+        ${gh(m.E[0],m.E[1],m.W[0],m.W[1],23)}
+        <ellipse class="sk gh" cx="${m.H[0]}" cy="${m.H[1]}" rx="13" ry="17"/>
+        ${bone(m.E[0]-4,m.E[1]+2,m.W[0]-4,m.W[1],9)}
+        ${bone(m.E[0]+4,m.E[1]+2,m.W[0]+4,m.W[1],9)}
+        ${handBones(m.H[0],m.H[1]-4,m.dir)}
+        <circle class="bn" cx="${m.E[0]}" cy="${m.E[1]}" r="11"/>
+        ${M(il)}
+      </g>
+      ${M(iu)}
+    </g>`;
+  }
+  function leg(L){
+    const m = L ? {H:[128,238],K:[126,335],A:[121,406],F:[119,416],rH:[-25,80],rK:[-6,110],rA:[-30,30]}
+                : {H:[172,238],K:[174,335],A:[179,406],F:[181,416],rH:[-80,25],rK:[-110,6],rA:[-30,30]};
+    const iu=L?'legLu':'legRu', il=L?'legLl':'legRl', ifo=L?'legLf':'legRf';
+    return `<g class="limb" data-id="${iu}" data-cx="${m.H[0]}" data-cy="${m.H[1]}" data-min="${m.rH[0]}" data-max="${m.rH[1]}">
+      ${gh(m.H[0],m.H[1],m.K[0],m.K[1],36)}
+      ${bone(m.H[0],m.H[1]+2,m.K[0],m.K[1],17)}
+      <circle class="bn" cx="${m.H[0]}" cy="${m.H[1]}" r="11"/>
+      <g class="limb" data-id="${il}" data-cx="${m.K[0]}" data-cy="${m.K[1]}" data-min="${m.rK[0]}" data-max="${m.rK[1]}">
+        ${gh(m.K[0],m.K[1],m.A[0],m.A[1],27)}
+        ${bone(m.K[0]-4,m.K[1]+4,m.A[0]-4,m.A[1],12)}
+        ${bone(m.K[0]+4,m.K[1]+4,m.A[0]+4,m.A[1],7)}
+        <g class="limb" data-id="${ifo}" data-cx="${m.A[0]}" data-cy="${m.A[1]}" data-min="${m.rA[0]}" data-max="${m.rA[1]}">
+          <ellipse class="sk gh" cx="${m.F[0]}" cy="${m.F[1]}" rx="15" ry="9"/>
+          <ellipse class="bn" cx="${m.F[0]}" cy="${m.F[1]}" rx="15" ry="8"/>
+        </g>
+        <circle class="bn" cx="${m.K[0]}" cy="${m.K[1]}" r="12"/>
+        ${M(il)}
+      </g>
+      ${M(iu)}
+    </g>`;
+  }
+  return `<svg viewBox="0 0 300 440" xmlns="http://www.w3.org/2000/svg">${torso}${M('root')}${arm(true)}${arm(false)}${leg(true)}${leg(false)}</svg>`;
+}
+function bindPuppet(svgEl){
+  const svg=svgEl||$('#stageA svg'); if(!svg) return;
+  let cur=null;
+  function local(el,e){
+    const p=svg.createSVGPoint(); p.x=e.clientX; p.y=e.clientY;
+    return p.matrixTransform(el.getScreenCTM().inverse());
+  }
+  svg.addEventListener('pointerdown',function(e){
+    const g=e.target.closest('.limb'); if(!g) return;
+    e.preventDefault();
+    const cx=+g.dataset.cx, cy=+g.dataset.cy, p=local(g.parentNode,e);
+    cur={g:g,cx:cx,cy:cy,min:+g.dataset.min,max:+g.dataset.max,
+         a0:Math.atan2(p.y-cy,p.x-cx)*180/Math.PI, base:+(g.dataset.a||0)};
+    try{svg.setPointerCapture(e.pointerId);}catch(err){}
+  });
+  svg.addEventListener('pointermove',function(e){
+    if(!cur) return;
+    const p=local(cur.g.parentNode,e);
+    let d=Math.atan2(p.y-cur.cy,p.x-cur.cx)*180/Math.PI-cur.a0;
+    while(d>180)d-=360; while(d<-180)d+=360;
+    const ang=Math.max(cur.min,Math.min(cur.max,cur.base+d));
+    cur.g.dataset.a=ang;
+    cur.g.setAttribute('transform','rotate('+ang.toFixed(1)+' '+cur.cx+' '+cur.cy+')');
+  });
+  ['pointerup','pointercancel'].forEach(function(ev){
+    svg.addEventListener(ev,function(){cur=null;});
+  });
+}
+
+/* ============ タブ ============ */
+const panels={a:$('#pa'),b:$('#pb'),c:$('#pc'),d:$('#pd'),e:$('#pe'),f:$('#pf')};
+$$('.tab').forEach(function(t){
+  t.addEventListener('click',function(){
+    $$('.tab').forEach(function(x){x.setAttribute('aria-selected','false');});
+    t.setAttribute('aria-selected','true');
+    for(const k in panels) panels[k].classList.toggle('on',k===t.dataset.t);
+    if(t.dataset.t==='f' && typeof startPartAnim==='function') startPartAnim();
+  });
+});
+
+/* ============ 1 体のつくり ============ */
+var PARTS=[
+ {k:'サ',n:'頭',pos:[150,38],lab:[244,42],bend:false,
+  txt:'頭のほねはしっかり組み合わさっていて、曲がりません。中ののうを守っています。'},
+ {k:'シ',n:'ひじ',pos:[204,176],lab:[244,180],bend:true,
+  txt:'ほねとほねのつなぎ目＝関節。うでを大きく曲げのばしできます。'},
+ {k:'ス',n:'ひじと手首の間',pos:[210,214],lab:[244,218],bend:false,
+  txt:'ここはほねのとちゅうです。関節ではないので曲がりません。'},
+ {k:'セ',n:'もも',pos:[176,288],lab:[244,292],bend:false,
+  txt:'太いほねのとちゅうで、まわりをきん肉がつつんでいます。ここは曲がりません。'},
+ {k:'ソ',n:'ひざ',pos:[176,336],lab:[244,340],bend:true,
+  txt:'足の関節。しゃがんだり走ったりするときに大きく曲がります。'},
+ {k:'タ',n:'すね',pos:[180,378],lab:[244,382],bend:false,
+  txt:'さわるとかたい、ほねのとちゅうです。曲がりません。'},
+ {k:'チ',n:'足首',pos:[184,412],lab:[244,416],bend:true,
+  txt:'足の先を上下に動かせる関節。地面をける力をつたえます。'}
+];
+const A_INFO={
+  skin:['からだ','わたしたちの体には、さわるとかたいところと、やわらかいところがあります。かたいところが「ほね」、やわらかいところが「きん肉」です。'],
+  bone:['ほね','かたくてじょうぶな「ほね」。体をささえたり、のうや心ぞうなど大切なところを守ったりしています。'],
+  mus:['きん肉','やわらかい「きん肉」。ほねについていて、ちぢんだりゆるんだりすることで、ほねを動かしています。'],
+  move:['関節','手や足をつまんで動かしてみよう。うでは かた と ひじ、足は こし・ひざ・足首 でしか曲がりません。ほねのとちゅうは、いくら引っぱっても曲がらないね。']
+};
+var aMode='look', aLayer='skin', aStep=1;
+var kaki={ka:null,ki:null}, kakiActive='ka', kakiDone=false;
+var qSel=[], qChecked=false, q3done=false;
+
+function renderA(){
+  if(aMode==='look'){
+    if(aLayer==='move'){ $('#stageA').innerHTML=puppetSVG(); bindPuppet(); }
+    else { $('#stageA').innerHTML=humanSVG(false); }
+    applyLayer();
+  }else if(aStep===2 && qChecked){
+    $('#stageA').innerHTML=puppetSVG(testMarks());
+    bindParts();
+    startBendAnim();
+  }else{
+    $('#stageA').innerHTML=humanSVG(aStep===1?'kaki':(aStep===2?'test':false));
+    const svg=$('#stageA svg');
+    svg.querySelector('.skinL').style.opacity=0.4;
+    svg.querySelector('.boneL').style.opacity=1;
+    svg.querySelector('.musL').style.opacity=0;
+    if(aStep===2) bindParts();
+  }
+}
+/* 答え合わせ後：正解の関節（シ・ソ・チ）が曲がってみせる */
+var aRaf=null, aT=0;
+function testMarks(){
+  const host=['root','armRu','armRl','legRu','legRu','legRl','legRl'];
+  const out={};
+  PARTS.forEach(function(q,i){
+    const on=qSel.indexOf(i)>=0;
+    const cls=on?(q.bend?'ok':'ng'):(q.bend?'miss':'');
+    const s=`<g class="pmark ${cls}" data-p="${i}"><circle cx="${q.pos[0]}" cy="${q.pos[1]}" r="14"/>`+
+            `<text x="${q.pos[0]}" y="${q.pos[1]+5}" text-anchor="middle">${q.k}</text></g>`;
+    out[host[i]]=(out[host[i]]||'')+s;
+  });
+  return out;
+}
+function setLimbA(id,deg){
+  const g=$('#stageA svg [data-id="'+id+'"]'); if(!g) return;
+  g.dataset.a=deg;
+  g.setAttribute('transform','rotate('+deg.toFixed(1)+' '+g.dataset.cx+' '+g.dataset.cy+')');
+}
+function bendLoop(){
+  if(!(aMode==='quiz'&&aStep===2&&qChecked)){aRaf=null;return;}
+  aT+=0.022;
+  const k=0.5-0.5*Math.cos(aT);
+  setLimbA('armRl',115*k);
+  setLimbA('legRl',-95*k);
+  setLimbA('legRf',20*k);
+  aRaf=requestAnimationFrame(bendLoop);
+}
+function startBendAnim(){
+  if(aRaf){cancelAnimationFrame(aRaf);aRaf=null;}
+  aT=0; aRaf=requestAnimationFrame(bendLoop);
+}
+function applyLayer(){
+  const svg=$('#stageA svg');
+  if(svg && aLayer!=='move'){
+    svg.querySelector('.boneL').style.opacity=(aLayer==='bone')?1:0;
+    svg.querySelector('.musL').style.opacity=(aLayer==='mus')?1:0;
+    svg.querySelector('.skinL').style.opacity=(aLayer==='skin')?1:0.45;
+  }
+  $('#btnResetPose').hidden=(aLayer!=='move');
+  $('#aTitle').textContent=A_INFO[aLayer][0];
+  $('#aText').textContent=A_INFO[aLayer][1];
+  $$('#layerA button').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.l===aLayer));});
+}
+$$('#layerA button').forEach(function(b){
+  b.addEventListener('click',function(){aLayer=b.dataset.l;renderA();});
+});
+$('#btnResetPose').addEventListener('click',function(){
+  $$('#stageA .limb').forEach(function(g){g.dataset.a=0;g.removeAttribute('transform');});
+});
+$$('#modeA button').forEach(function(b){
+  b.addEventListener('click',function(){
+    aMode=b.dataset.m;
+    $$('#modeA button').forEach(function(x){x.setAttribute('aria-pressed',String(x.dataset.m===aMode));});
+    $('#aLookBox').hidden=(aMode!=='look');
+    $('#aQuizBox').hidden=(aMode!=='quiz');
+    if(aMode==='look'){renderA();}
+    else{aStep=1;resetQuiz();renderStep();}
+  });
+});
+function resetQuiz(){
+  kaki={ka:null,ki:null}; kakiActive='ka'; kakiDone=false;
+  qSel=[]; qChecked=false; q3done=false;
+}
+function renderStep(){
+  $$('#aqSteps span').forEach(function(x,i){x.classList.toggle('now',i===aStep-1);});
+  $('#aqCheck').hidden=(aStep===3);
+  $('#aqNext').textContent=(aStep===3)?'もう一度':'つぎへ';
+  const body=$('#aqBody');
+  if(aStep===1){
+    $('#aqTitle').textContent='① か・き を何といいますか';
+    $('#aqText').textContent='（　）をタップしてから、下の言葉をえらぼう。';
+    body.innerHTML=
+      '<div class="blankrow"><span class="ymark">か</span><span class="slot active" data-b="ka">（　　　）</span></div>'+
+      '<div class="blankrow"><span class="ymark">き</span><span class="slot" data-b="ki">（　　　）</span></div>'+
+      '<div class="words">'+['関節','きん肉','むね','ほね'].map(function(w){
+        return '<button class="chip" data-w="'+w+'">'+w+'</button>';}).join('')+'</div>';
+    bindKaki();
+    $('#aTitle').textContent='①';
+    $('#aText').textContent='「か」はかたいところ、「き」は曲げられるところをさしています。';
+  }else if(aStep===2){
+    $('#aqTitle').textContent='② 大きく曲がる部分を3つ';
+    $('#aqText').textContent='図のサ〜チの印をタップしてえらぼう。';
+    body.innerHTML='<p>えらんだ数 <span class="count"><span id="qCnt">'+qSel.length+'</span>／3</span></p>';
+    $('#aTitle').textContent='②';
+    $('#aText').textContent='ここは大きく曲がるかな？　自分の体をさわってたしかめよう。';
+  }else{
+    $('#aqTitle').textContent='③ かたくてじょうぶなものは？';
+    $('#aqText').textContent='体の中にあって、体をささえたり、体の中のものを守ったりしています。';
+    body.innerHTML='<div class="opts">'+['きん肉','ほね','関節'].map(function(w){
+      return '<button class="opt" data-w="'+w+'">'+w+'</button>';}).join('')+'</div>';
+    $$('.opt',body).forEach(function(b){
+      b.addEventListener('click',function(){
+        if(q3done) return; q3done=true;
+        $$('.opt',body).forEach(function(x){
+          x.disabled=true;
+          if(x.dataset.w==='ほね') x.classList.add('correct');
+          else if(x===b) x.classList.add('wrong');
+        });
+        $('#aTitle').textContent=(b.dataset.w==='ほね')?'せいかい！':'おしい！';
+        $('#aText').textContent='答えは「ほね」。かたくてじょうぶなほねが、体をささえたり、のうや心ぞうを守ったりしています。';
+      });
+    });
+    $('#aTitle').textContent='③';
+    $('#aText').textContent='教科書のまとめを思い出してみよう。';
+  }
+  renderA();
+}
+function bindKaki(){
+  $$('#aqBody .slot').forEach(function(sl){
+    sl.addEventListener('click',function(){
+      if(kakiDone) return;
+      const b=sl.dataset.b;
+      if(kaki[b]){ kaki[b]=null; }
+      kakiActive=b; paintKaki();
+    });
+  });
+  $$('#aqBody .chip').forEach(function(c){
+    c.addEventListener('click',function(){
+      if(kakiDone) return;
+      kaki[kakiActive]=c.dataset.w;
+      kakiActive=(kakiActive==='ka' && !kaki.ki)?'ki':(!kaki.ka?'ka':kakiActive);
+      paintKaki();
+    });
+  });
+  paintKaki();
+}
+function paintKaki(){
+  const used=[kaki.ka,kaki.ki];
+  $$('#aqBody .slot').forEach(function(sl){
+    const b=sl.dataset.b;
+    sl.textContent=kaki[b]?kaki[b]:'（　　　）';
+    sl.classList.toggle('active',!kakiDone && kakiActive===b);
+  });
+  $$('#aqBody .chip').forEach(function(c){
+    c.classList.toggle('used',used.indexOf(c.dataset.w)>=0);
+  });
+}
+function bindParts(){
+  $$('#stageA .pmark').forEach(function(g){
+    const i=+g.dataset.p, q=PARTS[i];
+    if(qChecked){
+      const on=qSel.indexOf(i)>=0;
+      const cls=on?(q.bend?'ok':'ng'):(q.bend?'miss':'');
+      if(cls) g.classList.add(cls);
+    }else if(qSel.indexOf(i)>=0) g.classList.add('sel');
+    g.addEventListener('click',function(){
+      $('#aTitle').textContent=q.k+'　'+q.n;
+      if(qChecked){ $('#aText').textContent=(q.bend?'◯ 大きく曲がる：':'× 曲がらない：')+q.txt; return; }
+      const at=qSel.indexOf(i);
+      if(at>=0) qSel.splice(at,1);
+      else if(qSel.length>=3){ $('#aText').textContent='えらべるのは3つまで。かえたいときは、えらんだ印をもう一度タップしてね。'; return; }
+      else qSel.push(i);
+      g.classList.toggle('sel',qSel.indexOf(i)>=0);
+      $('#qCnt').textContent=qSel.length;
+      $('#aText').textContent='ここは大きく曲がるかな？　自分の体をさわってたしかめよう。';
+    });
+  });
+}
+$('#aqCheck').addEventListener('click',function(){
+  if(aStep===1){
+    if(!kaki.ka||!kaki.ki){ $('#aText').textContent='「か」と「き」の両方に言葉を入れてから、答え合わせをしよう。'; return; }
+    kakiDone=true;
+    $$('#aqBody .slot').forEach(function(sl){
+      const ans=(sl.dataset.b==='ka')?'ほね':'関節';
+      sl.classList.remove('active');
+      sl.classList.add(kaki[sl.dataset.b]===ans?'ok':'no');
+      sl.textContent=ans;
+    });
+    const ok=(kaki.ka==='ほね'&&kaki.ki==='関節');
+    $('#aTitle').textContent=ok?'せいかい！':'答えを見てみよう';
+    $('#aText').textContent='「か」＝かたいところは ほね。「き」＝曲げられるところは 関節（ほねとほねのつなぎ目）です。';
+  }else if(aStep===2){
+    if(qSel.length!==3){ $('#aText').textContent='3つえらんでから、答え合わせをしよう。'; return; }
+    qChecked=true; renderA();
+    const right=qSel.filter(function(i){return PARTS[i].bend;}).length;
+    $('#aTitle').textContent=(right===3?'ぜんせいかい！':'せいかいは '+right+'／3');
+    $('#aText').innerHTML='大きく曲がる部分は <b>シ（ひじ）・ソ（ひざ）・チ（足首）</b>。どれも<b>関節</b>です。ほねが動いているようすを見てみよう。ス・セ・タはほねのとちゅうなので曲がりません。印をタップすると、それぞれのせつめいが読めます。';
+  }
+});
+$('#aqNext').addEventListener('click',function(){
+  if(aStep<3){ aStep++; }
+  else { aStep=1; resetQuiz(); }
+  renderStep();
+});
+renderA();
+
+/* ============ 2 関節さがし ============ */
+var JOINTS=[
+ {name:'くび',pos:[[150,78]],txt:'頭を前後左右にかたむけたり、まわしたりできる関節。'},
+ {name:'かた',pos:[[108,106],[192,106]],txt:'うでをぐるりと大きくまわせる関節。ボールを投げるときに使うよ。'},
+ {name:'ひじ',pos:[[98,176],[202,176]],txt:'うでを曲げのばしする関節。きん肉のはたらきで動きます。'},
+ {name:'手首',pos:[[88,244],[212,244]],txt:'手を上下や左右に動かせる関節。細かい動きができるよ。'},
+ {name:'ゆび',pos:[[80,268],[220,268]],txt:'1本のゆびに関節がいくつもあるので、ものをしっかりつかめます。'},
+ {name:'こし',pos:[[150,205]],txt:'体を前に曲げたり、ひねったりできるところ。せぼねがつながっています。'},
+ {name:'ひざ',pos:[[126,335],[174,335]],txt:'足を曲げのばしする関節。走ったりジャンプしたりするときに大かつやく。'},
+ {name:'足首',pos:[[118,410],[182,410]],txt:'足の先を上げ下げできる関節。地面をける力を伝えます。'}
+];
+var bFound=[];
+(function(){
+  const ul=$('#bList');
+  JOINTS.forEach(function(j,i){
+    const li=document.createElement('li'); li.textContent='□ '+j.name; li.id='jl'+i; ul.appendChild(li);
+  });
+  $('#stageB').innerHTML=humanSVG('find');
+  const svg=$('#stageB svg');
+  svg.querySelector('.skinL').style.opacity=0.4;
+  svg.querySelector('.musL').style.opacity=0;
+  $$('.jointdot',svg).forEach(function(dot){
+    dot.addEventListener('click',function(){
+      const i=+dot.dataset.j, j=JOINTS[i];
+      $$('.jointdot[data-j="'+i+'"]',svg).forEach(function(x){x.classList.add('found');});
+      const li=$('#jl'+i); li.textContent='✓ '+j.name; li.classList.add('found');
+      if(bFound.indexOf(i)<0) bFound.push(i);
+      $('#bCount').textContent=bFound.length;
+      $('#bTitle').textContent=j.name;
+      $('#bText').textContent=j.txt+(bFound.length===8?' ／ ぜんぶ見つけたね！ 曲がるところは、どこもほねとほねのつなぎ目（関節）だよ。':'');
+    });
+  });
+})();
+
+/* ============ 3 うでのしくみ ============ */
+function lerpColor(a,b,t){
+  const p=function(c){return [parseInt(c.substr(1,2),16),parseInt(c.substr(3,2),16),parseInt(c.substr(5,2),16)];};
+  const A=p(a),B=p(b);
+  return 'rgb('+A.map(function(v,i){return Math.round(v+(B[i]-v)*t);}).join(',')+')';
+}
+function armBody(){ return `
+  <g>
+    <line class="skl" x1="34" y1="156" x2="24" y2="248" stroke-width="26"/>
+    <ellipse class="sk" cx="22" cy="262" rx="12" ry="16"/>
+    <rect class="sk" x="28" y="122" width="76" height="198" rx="30"/>
+    <rect class="sk" x="52" y="98" width="24" height="32" rx="11"/>
+    <ellipse class="sk" cx="64" cy="70" rx="31" ry="35"/>
+    <path fill="var(--skin)" stroke="var(--skinL)" stroke-width="2" d="M34,62 q-10,8 -4,18 q4,4 8,1 z"/>
+    <path fill="var(--skin)" stroke="var(--skinL)" stroke-width="2" d="M94,62 q10,8 4,18 q-4,4 -8,1 z"/>
+    <path d="M33,66 C31,20 97,20 95,66 C90,42 80,34 64,34 C48,34 38,42 33,66 Z" fill="#4b382e"/>
+    <circle cx="52" cy="72" r="3.6" fill="#4b382e"/>
+    <circle cx="76" cy="72" r="3.6" fill="#4b382e"/>
+    <path d="M56,88 q8,7 16,1" fill="none" stroke="#d79c79" stroke-width="2.6" stroke-linecap="round"/>
+    <circle class="sk" cx="104" cy="152" r="33"/>
+  </g>`;}
+function armStageSVG(){ return `
+<svg viewBox="0 0 360 320" xmlns="http://www.w3.org/2000/svg">
+  ${armBody()}
+  <g id="armSkin"></g>
+  <g id="armMus"></g>
+  <g id="armBone"></g>
+  <g id="armLab"></g>
+  <g>
+    <rect x="212" y="18" width="136" height="38" rx="19" fill="#fff" stroke="#1e9ec4" stroke-width="2.5"/>
+    <text x="280" y="43" text-anchor="middle" font-size="20" fill="#1f3446" id="ttlTx">うでをのばす</text>
+  </g>
+</svg>`;}
+$('#stageC').innerHTML=armStageSVG();
+const S={x:104,y:155}, E={x:200,y:155}, FL=95, MAXD=130;
+let curT=0, hideMode=false, ansState={a:null,b:null}, lastBent=false;
+
+function bandPath(o,p,bulge,upward){
+  const vx=p.x-o.x, vy=p.y-o.y, L=Math.hypot(vx,vy)||1;
+  let nx=-vy/L, ny=vx/L;
+  if((upward && ny>0)||(!upward && ny<0)){nx=-nx;ny=-ny;}
+  const mx=(o.x+p.x)/2+nx*bulge, my=(o.y+p.y)/2+ny*bulge;
+  return {d:`M${o.x},${o.y} Q${mx},${my} ${p.x},${p.y}`, mx:mx, my:my, nx:nx, ny:ny};
+}
+function labelMark(ch,mx,my,tx,ty){
+  return `<line x1="${mx}" y1="${my}" x2="${tx}" y2="${ty}" stroke="#1f3446" stroke-width="1.6"/>`+
+   `<circle cx="${mx}" cy="${my}" r="14" fill="#fff" stroke="#1f3446" stroke-width="2.2"/>`+
+   `<text x="${mx}" y="${my+6}" text-anchor="middle" font-size="17" fill="#1f3446">${ch}</text>`;
+}
+const clamp=function(v,a,b){return Math.max(a,Math.min(b,v));};
+
+function drawArm(deg){
+  if(!$('#armSkin')) return;
+  const t=deg/MAXD; curT=t;
+  const th=deg*Math.PI/180;
+  const d={x:Math.cos(th), y:-Math.sin(th)};
+  const pp={x:d.y, y:-d.x};
+  const W={x:E.x+FL*d.x, y:E.y+FL*d.y};
+  const H={x:E.x+(FL+17)*d.x, y:E.y+(FL+17)*d.y};
+
+  $('#armSkin').innerHTML=
+    `<line class="skl" x1="${S.x}" y1="${S.y}" x2="${E.x}" y2="${E.y}" stroke-width="52"/>`+
+    `<line class="skl" x1="${E.x}" y1="${E.y}" x2="${W.x}" y2="${W.y}" stroke-width="44"/>`+
+    `<circle class="sk" cx="${H.x}" cy="${H.y}" r="19"/>`;
+
+  const O1={x:S.x+10, y:S.y-16}, A={x:E.x+28*d.x+10*pp.x, y:E.y+28*d.y+10*pp.y};
+  const O2={x:S.x+8,  y:S.y+16}, B={x:E.x-6*d.x-18*pp.x,  y:E.y-6*d.y-18*pp.y};
+  const b1=bandPath(O1,A,14+22*t,true);
+  const b2=bandPath(O2,B,14+22*(1-t),false);
+  const c1=lerpColor('#f8cfc0','#d3502c',t), c2=lerpColor('#f8cfc0','#d3502c',1-t);
+  const w1=17+13*t, w2=17+13*(1-t);
+  $('#armMus').innerHTML=
+   `<path d="${b2.d}" fill="none" stroke="${c2}" stroke-width="${w2}" stroke-linecap="round"/>`+
+   `<path d="${b1.d}" fill="none" stroke="${c1}" stroke-width="${w1}" stroke-linecap="round"/>`;
+
+  $('#armBone').innerHTML=
+    bone(S.x,S.y,E.x,E.y,14)+
+    bone(E.x+4*pp.x,E.y+4*pp.y,W.x+4*pp.x,W.y+4*pp.y,8)+
+    bone(E.x-4*pp.x,E.y-4*pp.y,W.x-4*pp.x,W.y-4*pp.y,8)+
+    `<circle class="bn" cx="${S.x}" cy="${S.y}" r="13"/>`+
+    `<circle class="bn" cx="${W.x}" cy="${W.y}" r="8"/>`+
+    `<circle cx="${E.x}" cy="${E.y}" r="12" fill="#fff" stroke="#f5821f" stroke-width="3"/>`+
+    `<text x="${E.x+16}" y="${E.y+34}" font-size="14" fill="#4a6377">関節（ひじ）</text>`;
+
+  const m1x=clamp(b1.mx+b1.nx*(w1/2+26),24,336), m1y=clamp(b1.my+b1.ny*(w1/2+26),74,296);
+  const m2x=clamp(b2.mx+b2.nx*(w2/2+26),24,336), m2y=clamp(b2.my+b2.ny*(w2/2+26),24,296);
+  $('#armLab').innerHTML=labelMark('あ',m1x,m1y,b1.mx,b1.my)+labelMark('い',m2x,m2y,b2.mx,b2.my);
+
+  $('#ttlTx').textContent = t>0.08 ? 'うでを曲げる' : 'うでをのばす';
+  $('#cText').textContent = t>0.08
+    ? '内側（あ）のきん肉がちぢみ、外側（い）のきん肉がゆるむことで、うでが曲がります。ちぢんだきん肉はふくらんで、さわるとかたくなります。'
+    : '内側（あ）のきん肉がゆるみ、外側（い）のきん肉がちぢむことで、うでがのびます。きん肉は関節をまたいでほねについています。';
+
+  const bent=t>0.08;
+  if(bent!==lastBent){lastBent=bent; ansState={a:null,b:null}; clearChoiceUI();}
+  refreshStates();
+  updateGauges(t);
+}
+/* きん肉の ながさ・ふとさ ゲージ */
+function updateGauges(t){
+  const set=function(id,v){const el=$(id); if(el) el.style.width=Math.round(v)+'%';};
+  set('#gAL',100-42*t);  set('#gAT',56+44*t);
+  set('#gBL',58+42*t);   set('#gBT',100-44*t);
+}
+function answerOf(m){ const bent=curT>0.08; return (m==='a') ? (bent?'ちぢむ':'ゆるむ') : (bent?'ゆるむ':'ちぢむ'); }
+function clearChoiceUI(){ $$('.mchoice button').forEach(function(b){b.classList.remove('ok','no');}); }
+function refreshStates(){
+  ['a','b'].forEach(function(m){
+    const el=$(m==='a'?'#stA':'#stB');
+    if(!hideMode || ansState[m]) el.textContent=answerOf(m);
+    else el.textContent='？';
+  });
+}
+$$('.mchoice button').forEach(function(b){
+  b.addEventListener('click',function(){
+    if(!hideMode) return;
+    const m=b.parentNode.dataset.m;
+    if(b.dataset.v===answerOf(m)){ ansState[m]=true; b.classList.add('ok'); b.classList.remove('no'); }
+    else { b.classList.add('no'); setTimeout(function(){b.classList.remove('no');},900); }
+    refreshStates();
+  });
+});
+$('#btnHide').addEventListener('click',function(){
+  hideMode=!hideMode;
+  $('#mArea').classList.toggle('hide',hideMode);
+  $('#btnHide').setAttribute('aria-pressed',String(hideMode));
+  $('#btnHide').textContent=hideMode?'答えを見せる':'答えをかくして問題にする';
+  ansState={a:null,b:null}; clearChoiceUI(); refreshStates();
+});
+
+const range=$('#angle');
+range.addEventListener('input',function(){drawArm(+range.value);});
+function animateTo(target){
+  const start=+range.value, t0=performance.now(), dur=650;
+  (function step(now){
+    const k=Math.min(1,(now-t0)/dur), e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+    range.value=Math.round(start+(target-start)*e); drawArm(+range.value);
+    if(k<1) requestAnimationFrame(step);
+  })(t0);
+}
+$('#btnBend').addEventListener('click',function(){animateTo(MAXD);});
+$('#btnStraight').addEventListener('click',function(){animateTo(0);});
+drawArm(0);
+
+/* ---- もけい：きん肉がちぢんでほねを引っぱる ---- */
+var mdlAng=0, mdlTarget=0, mdlRaf=null, mdlFail='none', mdlPull=null;
+const MDL_P={x:200,y:151}, MDL_MAX=112;
+function rotPt(p,c,deg){
+  const r=deg*Math.PI/180, cs=Math.cos(r), sn=Math.sin(r);
+  const dx=p.x-c.x, dy=p.y-c.y;
+  return {x:c.x+dx*cs-dy*sn, y:c.y+dx*sn+dy*cs};
+}
+function modelSVG(){
+  const fused=(mdlFail==='joint');
+  const ang=fused?0:-mdlAng;
+  const k=mdlAng/MDL_MAX;
+  const P=MDL_P;
+  const fixed=`<rect class="wood" x="72" y="142" width="130" height="18" rx="7"/>`;
+  const moveInner=`<rect class="wood" x="198" y="142" width="118" height="18" rx="7"/>`+
+    `<circle class="sk" cx="322" cy="151" r="15"/>`;
+  const move=fused
+    ? moveInner
+    : `<g transform="rotate(${ang.toFixed(1)} ${P.x} ${P.y})">${moveInner}</g>`;
+  let mus='';
+  if(mdlFail!=='mus'){
+    const A0={x:250,y:143}, B0={x:236,y:159};
+    const A=fused?A0:rotPt(A0,P,ang), B=fused?B0:rotPt(B0,P,ang);
+    const O1={x:88,y:137}, O2={x:88,y:165};
+    const ka=(mdlFail==='joint')?(mdlPull==='a'?1:0):k;
+    const kb=(mdlFail==='joint')?(mdlPull==='b'?1:0):1-k;
+    const b1=bandPath(O1,A,10+20*ka,true), b2=bandPath(O2,B,10+20*kb,false);
+    const c1=lerpColor('#f8cfc0','#d3502c',ka), c2=lerpColor('#f8cfc0','#d3502c',kb);
+    mus=`<path d="${b2.d}" fill="none" stroke="${c2}" stroke-width="${15+13*kb}" stroke-linecap="round"/>`+
+        `<path d="${b1.d}" fill="none" stroke="${c1}" stroke-width="${15+13*ka}" stroke-linecap="round"/>`+
+        labelMark('あ',b1.mx+b1.nx*32,b1.my+b1.ny*32,b1.mx,b1.my)+
+        labelMark('い',b2.mx+b2.nx*32,b2.my+b2.ny*32,b2.mx,b2.my);
+  }
+  const joint=fused
+    ? `<rect class="wood" x="186" y="142" width="28" height="18" rx="4"/><text class="mdlLab" x="200" y="286" text-anchor="middle">関節がない</text>`
+    : `<circle class="pin" cx="${P.x}" cy="${P.y}" r="11"/><text class="mdlLab" x="${P.x}" y="286" text-anchor="middle">↑ここが関節</text>`;
+  return `<svg viewBox="0 0 360 320" xmlns="http://www.w3.org/2000/svg">
+    <rect x="30" y="120" width="46" height="120" rx="12" fill="#dfe9f0"/>
+    <text class="mdlLab" x="53" y="256" text-anchor="middle">かた</text>
+    ${fixed}${move}${mus}${joint}
+  </svg>`;
+}
+function modelLoop(){
+  if(cMode!=='model'){mdlRaf=null;return;}
+  const d=mdlTarget-mdlAng;
+  if(Math.abs(d)<0.6){ mdlAng=mdlTarget; $('#stageC').innerHTML=modelSVG(); mdlRaf=null; return; }
+  mdlAng+=d*0.12;
+  $('#stageC').innerHTML=modelSVG();
+  mdlRaf=requestAnimationFrame(modelLoop);
+}
+function modelGo(){ if(!mdlRaf) mdlRaf=requestAnimationFrame(modelLoop); }
+$$('#mdlBtns button').forEach(function(b){
+  b.addEventListener('click',function(){
+    const k=b.dataset.k;
+    mdlPull=k;
+    if(mdlFail==='mus'){
+      $('#cTitle').textContent='きん肉がない';
+      $('#cText').textContent='引っぱるものがないので、ほねは動きません。ほねだけでは体を動かせないのですね。';
+      $('#stageC').innerHTML=modelSVG(); return;
+    }
+    if(mdlFail==='joint'){
+      $('#cTitle').textContent='関節がない';
+      $('#cText').textContent='きん肉はちぢんでいますが、ほねが1本につながっているので曲がりません。曲がるところ（関節）があってはじめて動きます。';
+      $('#stageC').innerHTML=modelSVG(); return;
+    }
+    mdlTarget=(k==='a')?MDL_MAX:0; modelGo();
+    $('#cTitle').textContent=(k==='a')?'あ がちぢんだ':'い がちぢんだ';
+    $('#cText').textContent=(k==='a')
+      ? 'あ がちぢんで短く太くなり、ほねを引っぱりました。そのけっか、関節のところで曲がります。い はのばされてゆるみます。'
+      : 'い がちぢんでほねを引っぱり、うでがのびました。きん肉は「引っぱる」ことしかできないので、2つが交たいではたらきます。';
+  });
+});
+$$('#mdlFail button').forEach(function(b){
+  b.addEventListener('click',function(){
+    mdlFail=b.dataset.f; mdlPull=null;
+    $$('#mdlFail button').forEach(function(x){x.setAttribute('aria-pressed',String(x.dataset.f===mdlFail));});
+    if(mdlFail!=='none'){ mdlAng=0; mdlTarget=0; }
+    $('#stageC').innerHTML=modelSVG();
+    $('#cTitle').textContent=(mdlFail==='none')?'もけい':(mdlFail==='joint'?'関節をなくしたら':'きん肉をなくしたら');
+    $('#cText').textContent=(mdlFail==='none')
+      ? '「あ をちぢめる」「い をちぢめる」ボタンをおしてみよう。'
+      : (mdlFail==='joint'
+        ? '2本のほねを1本につなげました。この状態で「あ をちぢめる」をおしてみよう。'
+        : 'きん肉（ゴム）を外しました。この状態で「あ をちぢめる」をおしてみよう。');
+  });
+});
+var cMode='look', cStep=1, cAns={1:null,2:null,3:null}, cDone={1:false,2:false,3:false};
+const C_ANS={1:'ア',2:'手',3:'関節'};
+
+function quizArmSVG(){
+  const deg=112, th=deg*Math.PI/180;
+  const d={x:Math.cos(th), y:-Math.sin(th)}, pp={x:d.y, y:-d.x};
+  const W={x:E.x+FL*d.x, y:E.y+FL*d.y};
+  const H={x:E.x+(FL+9)*d.x, y:E.y+(FL+9)*d.y};
+  const rot=Math.atan2(-d.x,d.y)*180/Math.PI;
+
+  const skin=`<circle class="sk" cx="${S.x}" cy="${S.y}" r="33"/>`+
+    `<line class="skl" x1="${S.x}" y1="${S.y}" x2="${E.x}" y2="${E.y}" stroke-width="52"/>`+
+    `<line class="skl" x1="${E.x}" y1="${E.y}" x2="${W.x}" y2="${W.y}" stroke-width="44"/>`;
+
+  const O1={x:S.x+10, y:S.y-16}, A={x:E.x+28*d.x+10*pp.x, y:E.y+28*d.y+10*pp.y};
+  const O2={x:S.x+8,  y:S.y+16}, B={x:E.x-6*d.x-18*pp.x,  y:E.y-6*d.y-18*pp.y};
+  const b1=bandPath(O1,A,22,true), b2=bandPath(O2,B,22,false);
+  const c1=cDone[1]?'#d3502c':'#f8cfc0', w1=cDone[1]?30:21;
+  const mus=`<path d="${b2.d}" fill="none" stroke="#f8cfc0" stroke-width="21" stroke-linecap="round"/>`+
+            `<path d="${b1.d}" fill="none" stroke="${c1}" stroke-width="${w1}" stroke-linecap="round"/>`;
+
+  let fj='';
+  if(cDone[3]){
+    for(let i=0;i<4;i++){
+      fj+=`<circle class="fj" cx="${H.x-7+i*4.75}" cy="${H.y+13}" r="2.8"/>`;
+      fj+=`<circle class="fj" cx="${H.x-8+i*5.5}" cy="${H.y+21}" r="2.8"/>`;
+    }
+    fj+=`<circle class="fj" cx="${H.x+6.5}" cy="${H.y+7}" r="2.8"/>`;
+    fj+=`<circle class="fj" cx="${H.x+13}" cy="${H.y+12}" r="2.8"/>`;
+    fj+=`<circle class="fj" cx="${H.x}" cy="${H.y-6}" r="2.8"/>`;
+  }
+  const bones=bone(S.x,S.y,E.x,E.y,14)+
+    bone(E.x+4*pp.x,E.y+4*pp.y,W.x+4*pp.x,W.y+4*pp.y,8)+
+    bone(E.x-4*pp.x,E.y-4*pp.y,W.x-4*pp.x,W.y-4*pp.y,8)+
+    `<circle class="bn" cx="${S.x}" cy="${S.y}" r="13"/>`+
+    `<g transform="rotate(${rot.toFixed(1)} ${H.x} ${H.y})">${handBones(H.x,H.y,1)}${fj}</g>`+
+    `<circle class="bn" cx="${E.x}" cy="${E.y}" r="12"/>`;
+
+  const st=(n,ch)=>{
+    let c='';
+    if(cDone[n]){ if(ch===C_ANS[n]) c=' ok'; else if(cAns[n]===ch) c=' ng'; }
+    else if(cAns[n]===ch) c=' sel';
+    if(cStep!==n && !cDone[n]) c+=' dim';
+    return c;
+  };
+  const mk=function(ch,lx,ly,tx,ty){
+    return `<g class="pmark${st(1,ch)}" data-q="1" data-v="${ch}">`+
+      `<line class="ldr" x1="${lx}" y1="${ly}" x2="${tx}" y2="${ty}"/>`+
+      `<circle cx="${lx}" cy="${ly}" r="15"/>`+
+      `<text x="${lx}" y="${ly+6}" text-anchor="middle">${ch}</text></g>`;
+  };
+  const pick=function(name,cx,cy,r,tx,ty){
+    return `<g class="cpick${st(2,name)}" data-q="2" data-v="${name}">`+
+      `<circle cx="${cx}" cy="${cy}" r="${r}"/>`+
+      `<line class="ldr" x1="${cx+r}" y1="${cy}" x2="${tx-6}" y2="${ty-5}"/>`+
+      `<text x="${tx}" y="${ty}">${name}</text></g>`;
+  };
+  const marks=mk('ア',60,92,b1.mx,b1.my)+mk('イ',78,252,b2.mx,b2.my)+
+    pick('手',H.x+d.x*10,H.y+d.y*10,25,H.x+56,H.y+24)+
+    pick('ひじ',E.x,E.y,22,E.x+34,E.y+6);
+
+  return `<svg viewBox="0 0 360 320" xmlns="http://www.w3.org/2000/svg">
+    ${skin}${mus}${bones}${marks}
+    <g><rect x="196" y="14" width="160" height="38" rx="19" fill="#fff" stroke="#1e9ec4" stroke-width="2.5"/>
+    <text x="276" y="39" text-anchor="middle" font-size="16" fill="#1f3446">うでを曲げたところ</text></g>
+  </svg>`;
+}
+function bindCMarks(){
+  $$('#stageC [data-q]').forEach(function(g){
+    const q=+g.dataset.q, v=g.dataset.v;
+    g.addEventListener('click',function(){
+      if(cStep!==q||cDone[q]) return;
+      cAns[q]=v;
+      $('#cText').textContent='「'+v+'」をえらびました。かえたいときは、もう一方をタップしてね。答え合わせボタンをおそう。';
+      paintCQuiz();
+    });
+  });
+}
+function paintCQuiz(){ $('#stageC').innerHTML=quizArmSVG(); bindCMarks(); }
+function renderCStep(){
+  $$('#cqSteps span').forEach(function(x,i){x.classList.toggle('now',i===cStep-1);});
+  $('#cqNext').textContent=(cStep===3)?'もう一度':'つぎへ';
+  const body=$('#cqBody'); body.innerHTML='';
+  if(cStep===1){
+    $('#cqTitle').textContent='① かたくなるのはどっち？';
+    $('#cqText').textContent='うでを曲げるとき、かたくなるきん肉は ア・イ のどちらですか。図の印をタップしよう。';
+    $('#cTitle').textContent='①';
+    $('#cText').textContent='自分のうでを曲げて、上と下のきん肉をさわりくらべてみよう。';
+  }else if(cStep===2){
+    $('#cqTitle').textContent='② 細かな動きができるのは？';
+    $('#cqText').textContent='より細かな動きができるのは、手とひじのどちらですか。青い印をタップしよう。';
+    $('#cTitle').textContent='②';
+    $('#cText').textContent='手をにぎったり開いたり、ひじを曲げたりのばしたり。どちらがいろいろな動きができるかな。';
+  }else{
+    $('#cqTitle').textContent='③ そのわけは？';
+    $('#cqText').textContent='「関節」という言葉を使って、わけを完成させよう。';
+    body.innerHTML='<div class="sentence"><span>手には</span><span class="slot" id="cSlot">（　　　）</span><span>がたくさんあるから。</span></div>'+
+      '<div class="words">'+['ほね','関節','きん肉'].map(function(w){
+        return '<button class="chip" data-w="'+w+'">'+w+'</button>';}).join('')+'</div>';
+    $$('#cqBody .chip').forEach(function(c){
+      c.addEventListener('click',function(){
+        if(cDone[3]) return;
+        cAns[3]=c.dataset.w; paintSlot();
+      });
+    });
+    paintSlot();
+    $('#cTitle').textContent='③';
+    $('#cText').textContent='手の骨をよく見てみよう。ゆびや手首には、つなぎ目がいくつあるかな。';
+  }
+  paintCQuiz();
+}
+function paintSlot(){
+  const sl=$('#cSlot'); if(!sl) return;
+  sl.textContent=cAns[3]?cAns[3]:'（　　　）';
+  sl.classList.toggle('active',!cDone[3]&&!!cAns[3]);
+  $$('#cqBody .chip').forEach(function(c){
+    c.classList.toggle('used',cAns[3]===c.dataset.w);
+  });
+}
+$('#cqCheck').addEventListener('click',function(){
+  if(!cAns[cStep]){
+    $('#cText').textContent=(cStep===3)?'言葉をえらんでから、答え合わせをしよう。':'図の印をタップしてえらんでから、答え合わせをしよう。';
+    return;
+  }
+  cDone[cStep]=true;
+  const ok=(cAns[cStep]===C_ANS[cStep]);
+  if(cStep===1){
+    $('#cTitle').textContent=ok?'せいかい！ 答えは ア':'おしい！ 答えは ア';
+    $('#cText').textContent='うでを曲げるときは、内側（ア）のきん肉がちぢんでふくらみ、さわるとかたくなります。外側（イ）のきん肉はゆるみます。のばすときは反対になります。';
+  }else if(cStep===2){
+    $('#cTitle').textContent=ok?'せいかい！ 答えは 手':'おしい！ 答えは 手';
+    $('#cText').textContent='ひじは曲げのばしだけですが、手はにぎる・開く・ひねるなど、いろいろな細かい動きができます。';
+  }else{
+    const sl=$('#cSlot');
+    sl.classList.remove('active');
+    sl.classList.add(ok?'ok':'no');
+    sl.textContent='関節';
+    $$('#cqBody .chip').forEach(function(c){c.classList.add('used');});
+    $('#cTitle').textContent=ok?'せいかい！':'答えを見てみよう';
+    $('#cText').textContent='答えは「手には、関節がたくさんあるから。」ひじの関節は1つですが、手にはゆびや手首にたくさんの関節があります（オレンジの点）。だから細かな動きができます。';
+  }
+  paintCQuiz();
+});
+$('#cqNext').addEventListener('click',function(){
+  if(cStep<3){ cStep++; }
+  else { cStep=1; cAns={1:null,2:null,3:null}; cDone={1:false,2:false,3:false}; }
+  renderCStep();
+});
+$$('#modeC button').forEach(function(b){
+  b.addEventListener('click',function(){
+    cMode=b.dataset.m;
+    $$('#modeC button').forEach(function(x){x.setAttribute('aria-pressed',String(x.dataset.m===cMode));});
+    $('#cLookBox').hidden=(cMode!=='look');
+    $('#cModelBox').hidden=(cMode!=='model');
+    $('#cQuizBox').hidden=(cMode!=='quiz');
+    if(cMode==='look'){
+      $('#stageC').innerHTML=armStageSVG();
+      $('#cTitle').textContent='わかったこと';
+      drawArm(+range.value);
+    }else if(cMode==='model'){
+      mdlAng=0; mdlTarget=0; mdlPull=null;
+      $('#stageC').innerHTML=modelSVG();
+      $('#cTitle').textContent='もけい';
+      $('#cText').textContent='ほねを2本、きん肉のかわりにゴムをつけたもけいです。「あ をちぢめる」ボタンをおすと、どうなるかな。';
+    }else{
+      cStep=1; cAns={1:null,2:null,3:null}; cDone={1:false,2:false,3:false};
+      renderCStep();
+    }
+  });
+});
+
+/* ============ 4 動物とくらべる ============ */
+function dogSVG(cap){
+  cap = cap || 'イヌ';
+  let ribs='';
+  for(let i=0;i<7;i++){
+    const x=138+i*16;
+    ribs+=`<path class="rib" d="M${x},100 C ${x-4},118 ${x-6},134 ${x+2},146"/>`;
+  }
+  const skin=`<g class="layer dSkin">
+    <line class="skl" x1="128" y1="140" x2="122" y2="184" stroke-width="17"/>
+    <line class="skl" x1="146" y1="140" x2="142" y2="184" stroke-width="15"/>
+    <line class="skl" x1="238" y1="150" x2="252" y2="176" stroke-width="15"/>
+    <line class="skl" x1="252" y1="176" x2="246" y2="186" stroke-width="13"/>
+    <line class="skl" x1="222" y1="150" x2="234" y2="176" stroke-width="14"/>
+    <ellipse class="sk" cx="120" cy="190" rx="12" ry="7"/>
+    <ellipse class="sk" cx="141" cy="190" rx="11" ry="7"/>
+    <ellipse class="sk" cx="244" cy="190" rx="12" ry="7"/>
+    <ellipse class="sk" cx="232" cy="190" rx="11" ry="7"/>
+    <ellipse class="sk" cx="232" cy="126" rx="32" ry="34"/>
+    <ellipse class="sk" cx="180" cy="116" rx="70" ry="40"/>
+    <line class="skl" x1="118" y1="104" x2="86" y2="84" stroke-width="38"/>
+    <path d="M248,88 q26,-20 30,4 q4,20 -14,22" fill="none" stroke="var(--skin)" stroke-width="15" stroke-linecap="round"/>
+    <polygon class="sk" points="58,60 64,32 80,56"/>
+    <polygon class="sk" points="84,54 98,34 100,58"/>
+    <ellipse class="sk" cx="74" cy="76" rx="26" ry="22"/>
+    <ellipse class="sk" cx="46" cy="84" rx="18" ry="12"/>
+    <circle cx="32" cy="82" r="4" fill="#7a5c46"/>
+    <circle cx="70" cy="70" r="3" fill="#7a5c46"/>
+   </g>`;
+  const bones=`<g class="layer dBone">
+    <ellipse class="bn" cx="72" cy="76" rx="22" ry="17"/>
+    <path class="bn" d="M52,80 q-18,2 -18,8 q0,7 18,7 z"/>
+    ${bone(92,80,120,96,9)}
+    ${bone(120,96,250,98,11)}
+    ${ribs}
+    <path class="bn" d="M244,84 C262,80 274,90 272,102 C270,112 258,114 250,108 Z"/>
+    ${bone(266,96,282,84,6)}${bone(282,84,290,96,6)}
+    ${bone(130,104,126,142,9)}${bone(126,142,122,182,7)}
+    ${bone(148,104,144,142,8)}${bone(144,142,140,182,6)}
+    ${bone(238,106,226,142,10)}${bone(226,142,250,172,8)}${bone(250,172,244,184,7)}
+    ${bone(224,106,214,142,9)}${bone(214,142,234,172,7)}
+    <circle class="bn" cx="126" cy="142" r="7"/><circle class="bn" cx="226" cy="142" r="8"/>
+    <circle class="bn" cx="250" cy="172" r="6"/><circle class="bn" cx="122" cy="182" r="6"/>
+    <ellipse class="bn" cx="120" cy="188" rx="11" ry="6"/><ellipse class="bn" cx="244" cy="188" rx="11" ry="6"/>
+   </g>`;
+  const mus=`<g class="layer dMus">
+    <line class="ml" x1="130" y1="106" x2="126" y2="142" stroke-width="20"/>
+    <line class="ml" x1="126" y1="142" x2="122" y2="180" stroke-width="12"/>
+    <line class="ml" x1="238" y1="108" x2="226" y2="142" stroke-width="16"/>
+    <line class="ml" x1="226" y1="142" x2="249" y2="172" stroke-width="12"/>
+    <ellipse class="mfill" cx="234" cy="122" rx="30" ry="31"/>
+    <ellipse class="mfill" cx="178" cy="116" rx="66" ry="37"/>
+    <line class="ml" x1="116" y1="104" x2="88" y2="86" stroke-width="34"/>
+    <ellipse class="mfill" cx="74" cy="78" rx="23" ry="18"/>
+    <path class="mline" d="M140 92 q6 40 -2 58 M162 88 q4 44 -2 62 M186 88 q2 44 -2 62 M210 92 q2 40 -2 56"/>
+    <path class="mline" d="M226 100 q16 20 6 44 M120 100 q10 18 4 40"/>
+    <path class="mline" d="M104 96 q-8 12 -14 16"/>
+   </g>`;
+  return `<svg viewBox="0 0 310 215" xmlns="http://www.w3.org/2000/svg">${skin}${bones}${mus}
+    <text class="cap" x="155" y="209" text-anchor="middle" font-size="16">${cap}</text></svg>`;
+}
+const D_INFO={
+  bone:['ほね','イヌにも、ヒトと同じようにほねと関節があります。せぼねやろっこつ、足のほねのつくりがよくにていますね。形や数、大きさは動物によってちがいます。'],
+  mus:['きん肉','イヌにもきん肉があります。ほねについたきん肉がちぢんだりゆるんだりして、関節のところで体を動かしています。'],
+  move:['うごかす','ヒトもイヌも、曲がるのはオレンジの印（関節）のところだけ。きん肉がちぢんでほねを引っぱるから、体が動きます。手足をつまんで動かすと、ちぢんだきん肉の色がこくなります。「歩かせる」ボタンもためしてみよう。']
+};
+const STMTS=[
+ {t:'どの動物も、ほねの形や数、大きさは同じである。',ok:false,
+  e:'動物によって、ほねの形も数も大きさもちがいます。ヒトとイヌの図をくらべてみよう。'},
+ {t:'イヌの体には、たくさんのほねや関節がある。',ok:true,
+  e:'イヌの体にも、たくさんのほねと、ほねとほねのつなぎ目＝関節があります。'},
+ {t:'イヌは、きん肉だけで体を動かすことができる。',ok:false,
+  e:'きん肉だけでは動かせません。ほねと関節があるから、きん肉のはたらきで体が動きます。'},
+ {t:'イヌなどの動物は、きん肉やほねなどのはたらきによって、体を動かしている。',ok:true,
+  e:'ヒトと同じように、ほね・関節・きん肉のはたらきで、体をささえたり動かしたりしています。'}
+];
+function dogPuppetSVG(){
+  const gh=function(x1,y1,x2,y2,w){return `<line class="skl gh" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke-width="${w}"/>`;};
+  let ribs='';
+  for(let i=0;i<7;i++){ const x=138+i*16;
+    ribs+=`<path class="rib" d="M${x},100 C ${x-4},118 ${x-6},134 ${x+2},146"/>`; }
+  const body=`<g>
+    <ellipse class="sk gh" cx="232" cy="126" rx="32" ry="34"/>
+    <ellipse class="sk gh" cx="180" cy="116" rx="70" ry="40"/>
+    ${gh(118,104,86,84,38)}
+    <path d="M248,88 q26,-20 30,4 q4,20 -14,22" fill="none" stroke="var(--skin)" stroke-width="15" stroke-linecap="round" opacity=".42"/>
+    <polygon class="sk gh" points="58,60 64,32 80,56"/>
+    <polygon class="sk gh" points="84,54 98,34 100,58"/>
+    <ellipse class="sk gh" cx="74" cy="76" rx="26" ry="22"/>
+    <ellipse class="sk gh" cx="46" cy="84" rx="18" ry="12"/>
+    <ellipse class="bn" cx="72" cy="76" rx="22" ry="17"/>
+    <path class="bn" d="M52,80 q-18,2 -18,8 q0,7 18,7 z"/>
+    ${bone(92,80,120,96,9)}
+    ${bone(120,96,250,98,11)}
+    ${ribs}
+    <path class="bn" d="M244,84 C262,80 274,90 272,102 C270,112 258,114 250,108 Z"/>
+    ${bone(266,96,282,84,6)}${bone(282,84,290,96,6)}
+    <ellipse class="mfill" cx="180" cy="116" rx="62" ry="33" opacity=".55"/>
+  </g>`;
+  function leg(o){
+    const mx=(o.A[0]+o.B[0])/2, my=(o.A[1]+o.B[1])/2;
+    return `<g class="limb" data-id="${o.id}u" data-cx="${o.A[0]}" data-cy="${o.A[1]}" data-min="${o.ru[0]}" data-max="${o.ru[1]}">
+      ${gh(o.A[0],o.A[1],o.B[0],o.B[1],o.w1)}
+      <ellipse class="dm" data-for="${o.id}l" cx="${mx}" cy="${my}" rx="${o.mr[0]}" ry="${o.mr[1]}" fill="#f8cfc0"/>
+      ${bone(o.A[0],o.A[1],o.B[0],o.B[1],9)}
+      <g class="limb" data-id="${o.id}l" data-cx="${o.B[0]}" data-cy="${o.B[1]}" data-min="${o.rl[0]}" data-max="${o.rl[1]}">
+        ${gh(o.B[0],o.B[1],o.C[0],o.C[1],o.w2)}
+        ${bone(o.B[0],o.B[1],o.C[0],o.C[1],7)}
+        ${o.extra||''}
+        <ellipse class="bn" cx="${o.F[0]}" cy="${o.F[1]}" rx="11" ry="6"/>
+        <circle class="jd" cx="${o.B[0]}" cy="${o.B[1]}" r="6"/>
+      </g>
+      <circle class="jd" cx="${o.A[0]}" cy="${o.A[1]}" r="6"/>
+    </g>`;
+  }
+  const ff=leg({id:'ff',A:[148,104],B:[144,142],C:[140,182],F:[141,188],w1:15,w2:12,mr:[9,18],ru:[-35,35],rl:[-45,10]});
+  const hf=leg({id:'hf',A:[224,106],B:[214,142],C:[234,172],F:[232,186],w1:15,w2:12,mr:[15,22],ru:[-30,30],rl:[-10,45],
+    extra:gh(234,172,232,184,11)+bone(234,172,232,184,7)});
+  const fn=leg({id:'fn',A:[130,104],B:[126,142],C:[122,182],F:[120,188],w1:17,w2:13,mr:[10,19],ru:[-35,35],rl:[-45,10]});
+  const hn=leg({id:'hn',A:[238,106],B:[226,142],C:[250,172],F:[246,186],w1:16,w2:13,mr:[17,24],ru:[-30,30],rl:[-10,45],
+    extra:gh(250,172,246,184,12)+bone(250,172,246,184,7)});
+  return `<svg viewBox="0 0 310 215" xmlns="http://www.w3.org/2000/svg">${ff}${hf}${body}${fn}${hn}
+    <text class="cap" x="155" y="209" text-anchor="middle" font-size="16">イヌ（手足をつまんで動かせます）</text></svg>`;
+}
+var dogWalk=false, dogRaf=null, dogT=0;
+function setAng(id,deg){
+  const g=$('#stageD2 svg [data-id="'+id+'"]'); if(!g) return;
+  const lo=+g.dataset.min, hi=+g.dataset.max;
+  const a=Math.max(lo,Math.min(hi,deg));
+  g.dataset.a=a;
+  g.setAttribute('transform','rotate('+a.toFixed(1)+' '+g.dataset.cx+' '+g.dataset.cy+')');
+}
+function walkPose(t){
+  setAng('fnu', 22*Math.sin(t));
+  setAng('fnl', -14*(0.5+0.5*Math.sin(t+1.4)));
+  setAng('ffu', 22*Math.sin(t+Math.PI));
+  setAng('ffl', -14*(0.5+0.5*Math.sin(t+Math.PI+1.4)));
+  setAng('hnu', 20*Math.sin(t+Math.PI));
+  setAng('hnl', 16*(0.5+0.5*Math.sin(t+Math.PI+1.4)));
+  setAng('hfu', 20*Math.sin(t));
+  setAng('hfl', 16*(0.5+0.5*Math.sin(t+1.4)));
+}
+function paintDogMuscles(){
+  $$('#stageD2 svg .dm').forEach(function(el){
+    const g=$('#stageD2 svg [data-id="'+el.dataset.for+'"]'); if(!g) return;
+    const a=Math.abs(+(g.dataset.a||0));
+    const span=Math.max(Math.abs(+g.dataset.min),Math.abs(+g.dataset.max))||1;
+    const k=Math.min(1,a/span);
+    el.setAttribute('fill',lerpColor('#f8cfc0','#d3502c',k));
+  });
+}
+function dogLoop(){
+  if(dMode!=='look'||dLayer!=='move'){dogRaf=null;return;}
+  if(dogWalk){ dogT+=0.06; walkPose(dogT); }
+  paintDogMuscles();
+  dogRaf=requestAnimationFrame(dogLoop);
+}
+$('#btnWalk').addEventListener('click',function(){
+  dogWalk=!dogWalk;
+  $('#btnWalk').textContent=dogWalk?'とめる':'歩かせる';
+  $('#btnWalk').setAttribute('aria-pressed',String(dogWalk));
+});
+var dMode='look', dLayer='bone', dSel=[], dChecked=false;
+
+function renderD(){
+  if(dMode==='look'){
+    $('#stageD1').style.flex='1'; $('#stageD2').style.flex='1.4';
+    if(dLayer==='move'){
+      $('#stageD1').innerHTML=puppetSVG();
+      $('#stageD2').innerHTML=dogPuppetSVG();
+      bindPuppet($('#stageD1 svg'));
+      bindPuppet($('#stageD2 svg'));
+      if(!dogRaf) dogRaf=requestAnimationFrame(dogLoop);
+    }else{
+      $('#stageD1').innerHTML=humanSVG(false);
+      $('#stageD2').innerHTML=dogSVG('イヌ');
+    }
+    setLayerD();
+  }else{
+    $('#stageD1').style.flex='1'; $('#stageD2').style.flex='1';
+    $('#stageD1').innerHTML=dogSVG('イヌのほね');
+    $('#stageD2').innerHTML=dogSVG('イヌのきん肉');
+    const a=$('#stageD1 svg'), b=$('#stageD2 svg');
+    a.querySelector('.dSkin').style.opacity=0.5; a.querySelector('.dBone').style.opacity=1; a.querySelector('.dMus').style.opacity=0;
+    b.querySelector('.dSkin').style.opacity=0.5; b.querySelector('.dBone').style.opacity=0; b.querySelector('.dMus').style.opacity=1;
+  }
+}
+function setLayerD(){
+  $('#walkRow').hidden=(dLayer!=='move');
+  $$('#layerD button').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.l===dLayer));});
+  $('#dTitle').textContent=D_INFO[dLayer][0];
+  $('#dText').textContent=D_INFO[dLayer][1];
+  const h=$('#stageD1 svg'), d=$('#stageD2 svg');
+  if(!h||!d||dLayer==='move') return;
+  h.querySelector('.skinL').style.opacity=0.4;
+  h.querySelector('.boneL').style.opacity=(dLayer==='bone')?1:0;
+  h.querySelector('.musL').style.opacity=(dLayer==='mus')?1:0;
+  d.querySelector('.dSkin').style.opacity=0.5;
+  d.querySelector('.dBone').style.opacity=(dLayer==='bone')?1:0;
+  d.querySelector('.dMus').style.opacity=(dLayer==='mus')?1:0;
+}
+$$('#layerD button').forEach(function(b){
+  b.addEventListener('click',function(){dLayer=b.dataset.l;renderD();});
+});
+function renderStmts(){
+  $('#dStmts').innerHTML=STMTS.map(function(q,i){
+    return '<div class="stmt" data-i="'+i+'"><span class="box"></span><span>'+q.t+'</span></div>';
+  }).join('');
+  $$('#dStmts .stmt').forEach(function(el){
+    el.addEventListener('click',function(){
+      const i=+el.dataset.i, q=STMTS[i];
+      if(dChecked){ $('#dTitle').textContent=(q.ok?'◯ 正しい':'× まちがい'); $('#dText').textContent=q.e; return; }
+      const at=dSel.indexOf(i);
+      if(at>=0){ dSel.splice(at,1); el.classList.remove('sel'); el.querySelector('.box').textContent=''; }
+      else if(dSel.length>=2){ $('#dText').textContent='えらべるのは2つまで。かえたいときは、○をもう一度タップしてね。'; return; }
+      else { dSel.push(i); el.classList.add('sel'); el.querySelector('.box').textContent='○'; }
+      $('#dTitle').textContent='正しいもの2つに○';
+      $('#dText').textContent='えらんだ数 '+dSel.length+'／2　イヌのほねときん肉の図をよく見てくらべよう。';
+    });
+  });
+}
+$('#dCheck').addEventListener('click',function(){
+  if(dSel.length!==2){ $('#dText').textContent='2つえらんでから、答え合わせをしよう。'; return; }
+  dChecked=true;
+  let right=0;
+  $$('#dStmts .stmt').forEach(function(el){
+    const i=+el.dataset.i, q=STMTS[i], on=dSel.indexOf(i)>=0;
+    el.classList.remove('sel');
+    if(on&&q.ok){ el.classList.add('ok'); el.querySelector('.box').textContent='○'; right++; }
+    else if(on){ el.classList.add('ng'); el.querySelector('.box').textContent='×'; }
+    else if(q.ok){ el.classList.add('miss'); el.querySelector('.box').textContent='○'; }
+  });
+  $('#dTitle').textContent=(right===2?'ぜんせいかい！':'せいかいは '+right+'／2');
+  $('#dText').textContent='正しいのは「イヌの体には、たくさんのほねや関節がある」と「きん肉やほねなどのはたらきによって、体を動かしている」。文をタップすると、それぞれのわけが読めます。';
+});
+$('#dReset').addEventListener('click',function(){
+  dSel=[]; dChecked=false; renderStmts();
+  $('#dTitle').textContent='正しいもの2つに○';
+  $('#dText').textContent='4つの文を読んで、正しいものを2つえらぼう。';
+});
+$$('#modeD button').forEach(function(b){
+  b.addEventListener('click',function(){
+    dMode=b.dataset.m;
+    $$('#modeD button').forEach(function(x){x.setAttribute('aria-pressed',String(x.dataset.m===dMode));});
+    $('#dLookBox').hidden=(dMode!=='look');
+    $('#dQuizBox').hidden=(dMode!=='quiz');
+    renderD();
+    if(dMode==='quiz'){
+      dSel=[]; dChecked=false; renderStmts();
+      $('#dTitle').textContent='正しいもの2つに○';
+      $('#dText').textContent='4つの文を読んで、正しいものを2つえらぼう。';
+    }
+  });
+});
+renderD();
+
+/* ============ 5 体でためそう ============ */
+function band2(o,p,bulge,dir){
+  const mx=(o.x+p.x)/2+dir[0]*bulge, my=(o.y+p.y)/2+dir[1]*bulge;
+  return {d:`M${o.x},${o.y} Q${mx},${my} ${p.x},${p.y}`, mx:mx, my:my};
+}
+const FPARTS=[
+ {id:'hiji',name:'ひじ',loc:[35,236],
+  fixedSkin:`<circle class="sk" cx="72" cy="150" r="30"/><line class="skl" x1="72" y1="150" x2="200" y2="150" stroke-width="46"/>`,
+  fixedBone:bone(72,150,200,150,16)+`<circle class="bn" cx="72" cy="150" r="14"/>`,
+  moveSkin:`<line class="skl" x1="200" y1="150" x2="308" y2="150" stroke-width="38"/><circle class="sk" cx="320" cy="150" r="17"/>`,
+  moveBone:bone(200,146,306,146,11)+bone(200,154,306,154,11)+`<circle class="bn" cx="320" cy="150" r="13"/>`,
+  P:[200,150],bend:-110,
+  m1:{o:[88,132],p:[248,136],dir:[0,-1],lab:'あ'},
+  m2:{o:[88,170],p:[188,172],dir:[0,1],lab:'い'},
+  txt:'ひじの関節をまたいで、2つのきん肉がほねについています。あ がちぢむと曲がり、い がちぢむとのびます。',
+  mission:'ひじを曲げて、うでの上がわのきん肉をさわってみよう。かたくふくらむのがわかるかな。のばすと、こんどは下がわがかたくなるよ。'},
+ {id:'hiza',name:'ひざ',loc:[38,274],
+  fixedSkin:`<circle class="sk" cx="180" cy="62" r="26"/><line class="skl" x1="180" y1="62" x2="180" y2="150" stroke-width="50"/>`,
+  fixedBone:bone(180,64,180,150,18)+`<circle class="bn" cx="180" cy="62" r="13"/>`,
+  moveSkin:`<line class="skl" x1="180" y1="150" x2="180" y2="244" stroke-width="38"/><ellipse class="sk" cx="198" cy="256" rx="24" ry="11"/>`,
+  moveBone:bone(176,150,176,244,12)+bone(186,152,186,244,7)+`<ellipse class="bn" cx="198" cy="256" rx="22" ry="9"/>`,
+  P:[180,150],bend:85,
+  m1:{o:[150,80],p:[164,198],dir:[-1,0],lab:'あ'},
+  m2:{o:[210,80],p:[196,198],dir:[1,0],lab:'い'},
+  txt:'ひざもうでと同じしくみです。ももの後ろ（あ）がちぢむと曲がり、ももの前（い）がちぢむとのびます。',
+  mission:'いすにすわって、ひざをのばしたり曲げたりしよう。ももの前と後ろ、どちらがかたくなるかな。'},
+ {id:'ago',name:'あご',loc:[44,214],
+  fixedSkin:`<ellipse class="sk gh" cx="168" cy="110" rx="70" ry="62"/>`+
+    `<path d="M104,98 C104,34 236,30 238,106 C228,60 200,46 168,46 C132,46 112,62 104,98 Z" fill="#4b382e" opacity=".45"/>`+
+    `<ellipse class="sk gh" cx="228" cy="126" rx="13" ry="18"/>`+
+    `<circle cx="126" cy="104" r="5" fill="#4b382e"/>`,
+  fixedBone:`<ellipse class="bn" cx="170" cy="92" rx="58" ry="46"/>`+
+    `<path class="bn" d="M116,118 q-8,20 2,30 l86,6 q14,-16 8,-34 z"/>`+
+    `<line class="ldr" x1="240" y1="116" x2="258" y2="106"/><text class="cap" x="262" y="110" font-size="15">関節</text>`,
+  moveSkin:``,
+  moveBone:`<path d="M214,118 L212,150 L128,166" fill="none" stroke="var(--boneL)" stroke-width="19" stroke-linejoin="round" stroke-linecap="round"/>`+
+    `<path d="M214,118 L212,150 L128,166" fill="none" stroke="var(--bone)" stroke-width="13" stroke-linejoin="round" stroke-linecap="round"/>`+
+    `<text class="cap" x="120" y="192" text-anchor="middle" font-size="15">下あご</text>`,
+  P:[214,118],bend:-22,musTop:true,
+  m2:{o:[178,74],p:[208,148],dir:[1,0],lab:'あ',labPos:[300,58]},
+  txt:'あごの関節は耳のすぐ前にあります。こめかみのきん肉（あ）がちぢむと、下あごが引き上げられて口が閉じます。ゆるめると、下あごが下がって口が開きます。',
+  mission:'口を大きく開けたり閉じたりしよう。耳の前と、こめかみに手をあてると、動いているのがわかるよ。'},
+ {id:'yubi',name:'ゆび',loc:[26,246],
+  fixedSkin:`<rect class="sk" x="34" y="118" width="96" height="74" rx="26"/>`,
+  fixedBone:bone(52,152,126,152,11)+bone(52,168,126,168,9),
+  chain:[
+   {P:[128,152],bend:52,skin:`<line class="skl" x1="128" y1="152" x2="196" y2="152" stroke-width="32"/>`,bn:bone(128,152,196,152,12)},
+   {P:[198,152],bend:52,skin:`<line class="skl" x1="198" y1="152" x2="250" y2="152" stroke-width="27"/>`,bn:bone(198,152,250,152,10)},
+   {P:[252,152],bend:44,skin:`<line class="skl" x1="252" y1="152" x2="290" y2="152" stroke-width="23"/><circle class="sk" cx="294" cy="152" r="12"/>`,bn:bone(252,152,288,152,8)}
+  ],
+  txt:'1本のゆびには関節が3つもあります。関節の数が多いほど、細かい動きができます。ゆびを動かすきん肉は、うでの中にあってすじで引っぱっています。',
+  mission:'ゆびを1本ずつゆっくり曲げてみよう。1本のゆびが何か所で曲がるか、数えてみよう。'},
+ {id:'kubi',name:'くび',loc:[44,219],
+  fixedSkin:`<rect class="sk" x="96" y="198" width="168" height="88" rx="34"/>`,
+  fixedBone:`<rect class="bn" x="172" y="200" width="16" height="11" rx="4"/><rect class="bn" x="172" y="214" width="16" height="11" rx="4"/>`,
+  moveSkin:`<line class="skl" x1="180" y1="200" x2="180" y2="150" stroke-width="36"/><ellipse class="sk" cx="180" cy="106" rx="44" ry="50"/>`+
+    `<circle cx="164" cy="100" r="5" fill="#4b382e"/><circle cx="196" cy="100" r="5" fill="#4b382e"/>`,
+  moveBone:`<ellipse class="bn" cx="180" cy="102" rx="34" ry="40"/><rect class="bn" x="172" y="150" width="16" height="11" rx="4"/><rect class="bn" x="172" y="164" width="16" height="11" rx="4"/><rect class="bn" x="172" y="178" width="16" height="11" rx="4"/>`,
+  P:[180,196],bend:-26,
+  m1:{o:[132,232],p:[156,142],dir:[-1,0],lab:'あ',labPos:[92,152]},
+  m2:{o:[228,232],p:[204,142],dir:[1,0],lab:'い',labPos:[268,152]},
+  txt:'頭とせぼねのつなぎ目も関節です。首の左右のきん肉が交たいでちぢんで、頭をかたむけています。',
+  mission:'首を右や左にゆっくりかたむけよう。反対がわの首すじがピンとはるのがわかるかな。'}
+];
+function stickFig(loc){
+  return `<g><circle cx="44" cy="205" r="11" fill="none" stroke="#b6c6d2" stroke-width="5"/>`+
+    `<path class="stick" d="M44,216 L44,258 M44,226 L26,246 M44,226 L62,246 M44,258 L32,290 M44,258 L56,290"/>`+
+    `<circle class="locdot" cx="${loc[0]}" cy="${loc[1]}" r="7"/></g>`;
+}
+function partSVG(cfg,k){
+  let s=cfg.fixedSkin;
+  if(cfg.chain){
+    let inner='', dots='';
+    for(let i=cfg.chain.length-1;i>=0;i--){
+      const c=cfg.chain[i];
+      inner=`<g transform="rotate(${(c.bend*k).toFixed(1)} ${c.P[0]} ${c.P[1]})">${c.skin}${c.bn}`+
+            `<circle class="jd" cx="${c.P[0]}" cy="${c.P[1]}" r="8"/>${inner}</g>`;
+    }
+    s+=inner+cfg.fixedBone+dots;
+    return `<svg viewBox="0 0 360 300" xmlns="http://www.w3.org/2000/svg">${s}${stickFig(cfg.loc)}</svg>`;
+  }
+  const P={x:cfg.P[0],y:cfg.P[1]}, ang=cfg.bend*k, rot=`rotate(${ang.toFixed(1)} ${P.x} ${P.y})`;
+  let mus='', lab='';
+  [cfg.m1,cfg.m2].forEach(function(m,i){
+    if(!m) return;
+    const t=(i===0)?k:1-k;
+    const o={x:m.o[0],y:m.o[1]}, p=rotPt({x:m.p[0],y:m.p[1]},P,ang);
+    const b=band2(o,p,8+18*t,m.dir);
+    const c=lerpColor('#f8cfc0','#d3502c',t), w=15+13*t;
+    mus+=`<path d="${b.d}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round"/>`;
+    const lp=m.labPos||[b.mx+m.dir[0]*(w/2+24),b.my+m.dir[1]*(w/2+24)];
+    lab+=labelMark(m.lab,lp[0],lp[1],b.mx,b.my);
+  });
+  return `<svg viewBox="0 0 360 300" xmlns="http://www.w3.org/2000/svg">
+    ${cfg.fixedSkin}<g transform="${rot}">${cfg.moveSkin}</g>
+    ${cfg.musTop?'':mus}
+    ${cfg.fixedBone}<g transform="${rot}">${cfg.moveBone}</g>
+    ${cfg.musTop?mus:''}
+    <circle class="jd" cx="${P.x}" cy="${P.y}" r="10"/>
+    ${lab}${stickFig(cfg.loc)}
+  </svg>`;
+}
+var fPart=0, fT=0, fRaf=null, fDoneList=[];
+function partLoop(){
+  if(!$('#pf').classList.contains('on')){fRaf=null;return;}
+  fT+=0.028;
+  const k=0.5-0.5*Math.cos(fT);
+  $('#stageF').innerHTML=partSVG(FPARTS[fPart],k);
+  fRaf=requestAnimationFrame(partLoop);
+}
+function startPartAnim(){
+  if(fRaf){cancelAnimationFrame(fRaf);fRaf=null;}
+  fT=0; fRaf=requestAnimationFrame(partLoop);
+}
+function renderF(){
+  const cfg=FPARTS[fPart];
+  $$('#partBtns button').forEach(function(b,i){
+    b.setAttribute('aria-pressed',String(i===fPart));
+    b.classList.toggle('done',fDoneList.indexOf(FPARTS[i].id)>=0);
+  });
+  $('#fTitle').textContent=cfg.name;
+  $('#fText').textContent=cfg.txt;
+  $('#fMission').textContent=cfg.mission;
+  const done=fDoneList.indexOf(cfg.id)>=0;
+  $('#fDone').setAttribute('aria-pressed',String(done));
+  $('#fDone').textContent=done?'できた！ ✓':'できた！';
+  $('#fCount').textContent=fDoneList.length;
+  $('#stageF').innerHTML=partSVG(cfg,0);
+  startPartAnim();
+}
+(function(){
+  $('#partBtns').innerHTML=FPARTS.map(function(p,i){
+    return '<button data-i="'+i+'" aria-pressed="'+(i===0)+'">'+p.name+'</button>';
+  }).join('');
+  $$('#partBtns button').forEach(function(b){
+    b.addEventListener('click',function(){ fPart=+b.dataset.i; renderF(); });
+  });
+  $('#fDone').addEventListener('click',function(){
+    const id=FPARTS[fPart].id, at=fDoneList.indexOf(id);
+    if(at>=0) fDoneList.splice(at,1); else fDoneList.push(id);
+    renderF();
+    if(fDoneList.length===FPARTS.length) $('#fText').textContent='ぜんぶためせたね！ 体のどこでも、ほね・関節・きん肉の同じしくみで動いています。';
+  });
+  const cfg=FPARTS[0];
+  $('#fTitle').textContent=cfg.name; $('#fText').textContent=cfg.txt;
+  $('#fMission').textContent=cfg.mission;
+  $('#stageF').innerHTML=partSVG(cfg,0);
+})();
+
+/* ============ 6 たしかめよう ============ */
+const QUIZ=[
+ {q:'ほねとほねのつなぎ目を、なんといいますか。',o:['きん肉','関節','ほねばん'],a:1,e:'体が曲がるところは、どこもほねとほねのつなぎ目＝関節です。'},
+ {q:'ヒトの体で、ほねのはたらきはどれですか。',o:['体をささえたり守ったりする','食べ物をこなす','空気をとりこむ'],a:0,e:'かたくてじょうぶなほねが、体をささえ、のうや心ぞうを守っています。'},
+ {q:'うでを曲げたとき、内側のきん肉はどうなりますか。',o:['ゆるむ','ちぢむ','なくなる'],a:1,e:'内側のきん肉がちぢみ、外側のきん肉がゆるむことで、うでが曲がります。'},
+ {q:'うでをのばしたとき、ちぢむのはどちらのきん肉ですか。',o:['内側のきん肉','外側のきん肉','どちらもちぢまない'],a:1,e:'内側がゆるみ、外側がちぢむことで、うでがのびます。'},
+ {q:'力を入れたとき、きん肉はどうなりますか。',o:['やわらかくなる','ちぢんでかたくなる','細くのびる'],a:1,e:'重いものを持つと、うでのきん肉がふくらんでかたくなります。'},
+ {q:'イヌやウサギなど、ヒト以外の動物はどうですか。',o:['ほねだけで、きん肉はない','ほね・関節・きん肉があり、同じしくみで動く','関節がないので体は曲がらない'],a:1,e:'ヒト以外の動物にも、ほね・関節・きん肉があり、体をささえたり動かしたりしています。'}
+];
+let qi=0, score=0, answered=false;
+function renderQ(){
+  const q=QUIZ[qi]; answered=false;
+  $('#qNo').textContent='第'+(qi+1)+'問／'+QUIZ.length;
+  $('#qScore').textContent='せいかい '+score+'こ';
+  $('#qText').textContent=q.q;
+  $('#qFb').innerHTML='';
+  $('#qNext').disabled=true;
+  $('#qNext').textContent=(qi===QUIZ.length-1)?'けっかを見る':'つぎへ';
+  const box=$('#qOpts'); box.innerHTML='';
+  q.o.forEach(function(text,i){
+    const b=document.createElement('button');
+    b.className='opt'; b.textContent='　'+'アイウ'[i]+'　'+text;
+    b.addEventListener('click',function(){
+      if(answered) return; answered=true;
+      $$('.opt').forEach(function(x,j){
+        x.disabled=true;
+        if(j===q.a) x.classList.add('correct');
+        else if(j===i) x.classList.add('wrong');
+      });
+      if(i===q.a){score++; $('#qFb').innerHTML='<b>せいかい！</b> '+q.e;}
+      else $('#qFb').innerHTML='<b>おしい！</b> '+q.e;
+      $('#qScore').textContent='せいかい '+score+'こ';
+      $('#qNext').disabled=false;
+    });
+    box.appendChild(b);
+  });
+}
+$('#qNext').addEventListener('click',function(){
+  if(qi<QUIZ.length-1){qi++;renderQ();return;}
+  $('#qNo').textContent='おわり';
+  $('#qText').textContent=QUIZ.length+'問中 '+score+'問せいかい！';
+  $('#qOpts').innerHTML='';
+  $('#qFb').innerHTML= score===QUIZ.length
+    ? 'かんぺき！ ほね・関節・きん肉のはたらきがよくわかっているね。'
+    : 'まちがえた問題は、1〜4のタブでもう一度たしかめてみよう。';
+  const b=document.createElement('button'); b.className='qbtn'; b.textContent='もう一度';
+  b.addEventListener('click',function(){qi=0;score=0;renderQ();});
+  $('#qOpts').appendChild(b);
+  $('#qNext').disabled=true;
+});
+renderQ();
+</script>
+</body>
+</html>
