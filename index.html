@@ -64,7 +64,7 @@ main{flex:1;min-height:0}
 .note p{font-size:clamp(12px,1.4vw,16px);line-height:1.6}
 .limb{cursor:grab}
 .limb:active{cursor:grabbing}
-.limb:hover>.bo{stroke:var(--accent)}
+.limb:hover .bn{stroke:var(--accent)}
 .gh{opacity:.42}
 .side{width:min(38%,380px);display:flex;flex-direction:column;gap:10px;min-height:0;overflow-y:auto}
 .card{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:12px 14px}
@@ -84,6 +84,7 @@ main{flex:1;min-height:0}
 
 /* ------- 関節さがし ------- */
 .jointdot{cursor:pointer;fill:#fff;stroke:var(--accent);stroke-width:3;transition:.2s}
+.jmark{fill:none;stroke:var(--accent);stroke-width:3;stroke-dasharray:5 4;cursor:grab;pointer-events:none}
 .jointdot:hover{fill:#ffe2c2}
 .jointdot.found{fill:var(--accent);stroke:#fff}
 .jlist{display:grid;grid-template-columns:1fr 1fr;gap:6px}
@@ -125,7 +126,6 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 .skl{stroke:var(--skin);stroke-linecap:round;fill:none}
 .bn{fill:var(--bone);stroke:var(--boneL);stroke-width:2}
 .bo{stroke:var(--boneL);stroke-linecap:round}
-.bi{stroke:var(--bone);stroke-linecap:round}
 .rib{fill:none;stroke:var(--boneL);stroke-width:3.4;stroke-linecap:round}
 .mfill{fill:var(--mus);stroke:var(--musD);stroke-width:1.6}
 .ml{stroke:var(--mus);stroke-linecap:round;fill:none}
@@ -234,7 +234,26 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 .doneBtn[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:#fff}
 .locdot{fill:var(--accent);stroke:#fff;stroke-width:2}
 .stick{stroke:#b6c6d2;stroke-width:6;stroke-linecap:round;fill:none}
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* ------- ごほうび（花丸） ------- */
+.maru{
+  position:absolute;left:50%;top:50%;width:var(--mz,40%);max-width:250px;
+  transform:translate(-50%,-50%);pointer-events:none;z-index:20;
+  filter:drop-shadow(0 5px 12px rgba(0,0,0,.2));
+  animation:maruPop 1.5s ease-out forwards;
+}
+@keyframes maruPop{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.25) rotate(-28deg)}
+  22%{opacity:1;transform:translate(-50%,-50%) scale(1.15) rotate(6deg)}
+  38%{transform:translate(-50%,-50%) scale(.95) rotate(-2deg)}
+  52%{transform:translate(-50%,-50%) scale(1.02) rotate(0deg)}
+  78%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0deg)}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(1.06) rotate(0deg)}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important}
+  .maru{animation:maruFade 1.3s ease-out forwards}
+  @keyframes maruFade{0%{opacity:0}15%{opacity:1}75%{opacity:1}100%{opacity:0}}
+}
 @media (max-width:820px){
   .panel{flex-direction:column}
   .side{width:100%;flex-direction:row;flex-wrap:wrap}
@@ -248,12 +267,12 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
   <header>
     <h1><span class="num">7</span>ヒトの体のつくりと運動</h1>
     <nav role="tablist">
-      <button class="tab" role="tab" data-t="a" aria-selected="true">1 体のつくり</button>
-      <button class="tab" role="tab" data-t="b" aria-selected="false">2 関節さがし</button>
-      <button class="tab" role="tab" data-t="c" aria-selected="false">3 うでのしくみ</button>
-      <button class="tab" role="tab" data-t="d" aria-selected="false">4 動物とくらべる</button>
-      <button class="tab" role="tab" data-t="f" aria-selected="false">5 体でためそう</button>
-      <button class="tab" role="tab" data-t="e" aria-selected="false">6 たしかめよう</button>
+      <button class="tab" role="tab" data-t="a" aria-selected="true">体のつくり</button>
+      <button class="tab" role="tab" data-t="b" aria-selected="false">関節さがし</button>
+      <button class="tab" role="tab" data-t="c" aria-selected="false">うでのしくみ</button>
+      <button class="tab" role="tab" data-t="d" aria-selected="false">動物とくらべる</button>
+      <button class="tab" role="tab" data-t="f" aria-selected="false">体でためそう</button>
+      <button class="tab" role="tab" data-t="e" aria-selected="false">たしかめよう</button>
     </nav>
   </header>
 
@@ -377,7 +396,6 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
           <p id="cqText"></p>
           <div id="cqBody"></div>
           <div class="chooser" style="margin-top:10px">
-            <button id="cqCheck">答え合わせ</button>
             <button id="cqNext">つぎへ</button>
           </div>
         </div>
@@ -459,95 +477,236 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 const $=(s,r=document)=>r.querySelector(s);
 const $$=(s,r=document)=>Array.prototype.slice.call(r.querySelectorAll(s));
 
+/* ============ ごほうび（正解音＋花丸） ============
+   音・画像はここに埋めこんであるので、外部ファイルは要りません。
+   praise('#pa .stage')  … 音を鳴らして花丸を出す
+   praise('#q','48%')    … 2つ目の引数で花丸の大きさ（ステージ幅に対する％）
+   花丸は .stage（図の外わく）に貼るので、図をかきかえても消えません。 */
+const IMG_MARU='data:image/png;base64,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';
+const SND_OK='data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjYwLjE2LjEwMAAAAAAAAAAAAAAA//tIxAAByzjc+wCEwUHeMqOCjIAAlZAAADEmmmrUyNSGBBMpVtF6nDs+5f//2CzlED2xnpFY8gezwecMCD6i2nci2f/c24fYf477D1B5yiB7TWbi04PoebCIcNGjIJipo2AxU1//+h0zQBI0gCZAmvOyD/n0h/YOuw7FhEBWDcG55Z9CQFk24ufhwaeQZy4uNuQ7H0RWKBwCwQxcXcXF5k+Kcs93v5PIHQlaIZ7kU8lChbUeIYNw7H5AoDQYQHkuLiAYhCYcDsu8OzjKhCK+DPR7/////+X5Pv////y30Qz3e//5mT7V/iYnWz/coZApEArDAc+7KDEL6uIf//tIxAqAD3n3a7j2gAHFNG5/ntACxT78KEjTxwhDiEgxx3YN8FsKZUkZXxGCcTBgFLQHt3wn4TswewlIpGqC/+YkxE1Tn110lf/3NE0BKB7oIv1zJ///2N6dbzem3VVOlNL///6kHUxgaR6Fxqaf/UZFFuv///sv//+fSeEMgE0RGFZZ4GwZZ0njrNYvrBKE2/656TqqHugdPGKPZbDgSXSV6kwnV72qT/NjJaBizrZSvq/1eoiGynUapHTSkmg/l5T332//9ExE9E+Ts26i6nSMWRNTUuJ7Ei9imySk3VdJJFH0kol5B3/+tRSS2rQDtjBry7AsTcvkiZDj//tIxAeADq2ha6alXhHCNC01BJ/CJ6TIpBdBSazszpJMHk+gmtq2VMBJVvdq/ARrf0v0K1JsgjSdmU3//j8hpyoVHFFcRpKNrOsFQhuNQVT///8NW8lRkJnFYRRPFtCYoLZYoLInkyHsMhOIRkK4iycwRB/8wDJP//yhl9aBelYdneQH0bG5OGzFY2RMTgTBYka1aKZ1QxzL3dK9QpJL6ukFM/t6KFPqSWupdF9/V//HUSCTReA4VFTBIomVkai+KFkhI+MR///1EwAb3eyns5jIWJFBueUaNCoyeYZJF48TE1RLQz9REL//9CxoVEAUdmglvfYNZsaTAljd//tIxAgADkGhbeak/hHQtCy01KvCk1B2DgemyzYus5mEnG1JlpM6S6ww/r6wVDbs/daX297KtSetlIfU2svi8+LyWVQUrnyMHvVQ0pBgG4f//8fAOe2KpY5ChpQ01R+Jx0848uUcTjw1oOFzCZUaCxP4EjP/+pYaNIO2wKzrMajJZUZHaRqDWEZ7toIpnQmpDUy1JoXdwEwdepVLnAA5pf67d0VUkklOtC7e6mXfu1YhyDMriWljCbQUWOQzny5nBTInZE3///NDRvKx4xHJyM7HhU40hJiNlR0IhZMNJGUkGxQ36IEsa//8qtUVkgOyIKKukaRhMkEUkjEG//tIxAgADk2hXakZvhHONC001LdSrh2UqtFZyoUIbIIMy2TesZtL6LVFEBGL1fVX6S1elZNBFH1N/5Kp9ly3RVpbajpdnC8XiwZvVv+27IJi4GNSB9NRkms2RNi8mdUgmcqOrJM2NEETizyLIGpfYsT/x9f//rP3asOb6Ca9aB2VYzHiedSw+hdzBaC5gugOwFkQDdBSTKp4cB3r+VBsoa69d38ZZ3Slb7yvk8/xLzh6h/7mCI/ixZEVYPagRtnus3FVAq+QaMlf//+oj/M2SzY+pkHPLS1ma3RRZMzROHlmrqQT/QDo///YvDmgAGoAGYIAuXzNAokNOWJ8//tIxAiADs2hSaoNWEHQtCp9QyvADBGwUpkgboOyCSa1jVXn1mqSkcb6XrHIMFsNMD8vBkzRMn/eCZ+VfirGhXIX1mVtZLQwJleeTVKSqMroPyiuhyERr/+v9EEsCJbN8nvKqeQlyM85Wocc7GsdkQtG220OA38//4mmyKIAbSzBk56C61zMzL1EyAoEBwo87KmzIKK4pAabH3QTd01RmTX5ZRdyiAVhJZ/67eu7113vS60Klr6D0BrGitjWJPa0NyLKuKP1gwHP///Kgob3MMKIpysSDIwqRlJUkJ2RjydjjS5pE04/9AuRP//5Ulqb2BX7wS3zMR3BMOEO//tIxAaADl1/Z6W1EVHANCt0+SrCu1uKhNO93T1R0pBXOZqNzRE0TaoSZ/q6g3m/Ulp6l6D0EOv3xEFzVJ8zWBQescFb5CNFMJD086RPhwCkVEBBUR+/+u+J/j+NgDiIkdwg5pcdaogtCH2+IRsnIkILsbHQ1f//Df8q7IgpbIDFFGNVjOtYWq6vgU4dF/Hw/jUzBiwmXG96iS21XJd1VXVs1tUWQHSRNVF/+UZTTSjGqzTl+6f9BvaznHGvUxiyTj0cmWX//0/UKomTc5DLKjqiseTshprTZzq5pNcw6cbXVjQDRTPf7egnGx9cVd9RbdNBkxpwpLLxtFkK//tIxAiADpWfZ6ahWNHUtCm1QyvAD2ukamxsiEnG045NNmMTI8mmICaKoI/UGwba9fUbL1P1L7Q0rGs++TyqxMpbFgokcx60xRAqx+Mt28csDGv/+v8J4WXbOPFdL3NQw9SqmEhw/I2U45CqlUPLE0+3qgSCb/+pMp4wFdGG3zGFtUUSUMl0kR3BQKfprWig6LDGqWdsuijUOQipF1yk1yVA1IkiB/XUkvZWuvU7KdVnqd7Vqde+kw8zkOWakQTQMOW8pKVlh0TK6ff52/BZNddTFRZxhhdjzUMNV09uTHu5h+h73PAwDSnb/qIEkVd3cziHfC7e6D799wGS//tIxAcADUF9b+ehUdGXL+s81B+IJuFkq0D/JO/ew84gFDDYOZxw+vC7e1f/hB/FSntD/9z1+OTqq5mlpie9Z5nEMGEoy2ksTSWGCEZlEKeaEY43/09V6EYFx+lNUtnMcl1U01JpU9j56nOYzfxk7+hHiVCGuYwm3noujM3NSg6lh9FUuHVOoxMDFayWRMnd2MUWWsgp9O71iyA9zn7e+m/qQ31PO9p3XNtt2GVSGjZ2il6SIb5/T9//0gezexjK6OzOjIUdDlNRDnNNo6HXTvxWAa1LPmkWWJXW0OSSse9tqosbVh5DtaEu4K1mozD5hraXfQn47d8zCWfX//tIxBKADJF7YaW1VhGKNGxwNqk+9fazJnJM9Oe03Q+iKMrNRzXRXdXV2MZTJiZrmqs9+h9s5UDUubOW9jz1HhqG5THhjnMQnGGuruVWczP8R3f5KW6GTfZ9Mhe51wxWNASyKS3dEmHzdg/FwmMzTx0uVlzpdqg+kkvR0WlfT/TtzqrZn7PGqcy799v0azaohtHftmqxAGx6Op+fOPc06prIP2Y97o7yiGmlleatUzwoCd60//YlR4pgNniMHbbsKpOBggB+t4DgIfKRdKsi7rSDEKrVJvRR0aQxQEgavf//ebdaIjeyLmMj+Tsm5tm9Z1aV6LNdLnoutknK//tIxCKADCmhV+Q09EGLNCs80Z8YAkX87OY1zHzpw4crOlL7JnOqHaNwiBrmb6f2iZgqIQoiXov2v4NVaJMUdSdYl46dlF2tJM0Nrp00b5lr96yoK1L6R5/b9p0yrlVOKx9e+XscM8BP0RDzJGJcufqR7/6/RPUE3fvVY5VmNHCN0M7sp+aaciKzLQxY4AIWdbf/k0inYleIni/f/ivlZJlQ94vGDN8uPPPOdzXIzyaehMeYL70M0qTgAh41T/ZPU96MzMczbbmVvM/Qu+x7r6q1KqpqGv3M6uzIbeYsw8KjWzmMnM6nIo72dbHKupzau9rqqIXEzehl6fQu//tIxDQADP2hW/S1AALxMeu/MSAB8sihTPRpCiQAgYn4uTWgBjivUGshahnWZgJBiIVQFHYy/aPKegAKnCQYnRJyNMB3EDN0RmgLuMaQ4ipGvQN0g+cNXlYPwA6Q2MQtuO164ocg59N5mNsupl0tPW6KZ9SZvNSeEoDJFVRuUSkTAsoZJBOWDVM/ZkEiwalcmCITIZg8XTX2RIYaJ1prY0jrKpPmxOOhdBl3KYy442mJrSfMVHQwUy1Ju9TVJGPzA0Ts60y4hf1mRskZUUS4maoqukLdjYUkemHiQp7SK6MvlSaKhnxuLB0aTExR2msVJ1ZWpOBrGvz8PE1q//tIxBUADOmBc7z1ABGZL+s0nCj4cjv7XT9DjhryUVTk+5hvZ///Ef/cej00w1rKatqOaYpoqi0LNTDRVAGD45TW9v/+hxypdDpsgIh+pVfqBGvMQ2xgSU90MIctEjQBeEH8i95DR4/vLbcK2+Zc1zTZYVvD7leS8j5o+yfDvNmgtjV6GM9PfYzv1KA1nZxK5lbIwvbsWX//gy//V0m3U2bO3ZThmIZDzjcAmOPv////vnUJXGNv2Lq6QSSxhW15QM9o98wLqRuEQFCby3jXxtDlikHefSqRifH3/uQKBG/547AAv9V6V9Rwnpc2iJAggDOjmC76kzxcU3HP//tIxCGADIF/aaehVtGbL+20+CoW//wRl/3ciGp5NctknzDihpOMR8apQzES//////5PKf0qv2FuthUkMCFM7+Yr6JDMsYxdFFXerUSbjj2VRMRVMutRSRLoB+Ki7fUAU+xrNdmXXtqyZgQt3qhITKaahzIePnb//h6X/PcsWGQ/krWFZTzFIi0jQ4CY0W0JXoGX////9L84jJXfrllTBmhFYDbrqjmVu3zuFO/ggI6K+pDfwrY6JV+um43BWqrmiZZYpgZIi3ofoB1vnHM5t0s6tO0uQAhnKmqIRS86hJkTt//w9HfzShynuXKcxC500xkIDQ+Sim1CW3////tIxC+ADNl9WexNTsGbL+01hqlq///TGpC6z6R/F7dYHbnZR/y6UbsZyiLiAZaBQMdE3rRHqOqkqkVuZCulv1A0Ja3sJQEb9kRnZtVovqqoVBCVXVjldTpAcjsTqXPN//4jin85rWTZyGz9Fj8lecu4QDvfXT039a1rszugzLoxlXlqCXIEqSZQLO+8MOAEBkDyEDOed6YZh6VZ3d3O//f1vkGutnrWOo9jKTOlvcv+Rhs+lpprOltF9/Cw1rGGOPUmXmJGjI/16aRAh//Y4kdXdmUlLmJJ1c9BZV1P6gJP/9v7f3zrOii2wxiF3LhDqKs7OxdtcLHjvp7p//tIxDwADVV7V+FhR8GZr248t55OQgSjSqXxVxJEZ8tTzVSjwrjMmZfcWlz19qAqJmzV2e819zXXl3UVA55juVOJGqpjHTx8Wmf3+lwoDeuSOcmJlsSJHHHP3YwwEkdhuptQK/////2vxsCCP5WX4yW2AyV10e01XB/IuZRGy9JwhNZ58jKvTWmYCU1qTqqApjT+oob1ZO1NkV/scFt0VamoTqcqLWiD9+9f3oHgp+qoxCiI7zCFWdqo7DGcx0xUAmLP7Ub///sYeZIx4C0jMcb//xBvVdrYHLXZRliBxKbEgAaBtCZDkWgZmCieaXXqdIb63RqohXlHfzIL//tIxEcADLl7Y6e1S1mjr6y01Ctau+9VFnV3qYRpmZjGgBJe0kfpTNab+g2Tf/+//8oCd//SPEvSLvKRds2+KpVyy2DEDlETa7f9v1TRGmoQkIo9n1UImAh3hUAty6w/j7ngUo/DjOYmSV377oettwfStflWem8Z2eUIo9Z+H/hB5pjGM7Sizrl7qZowP2csXU3QucjHIcqWb//wo3z2PLKhjOjO27HoYODwhS55XNBH////85D7zSo59b+KC6LTa0KRpBDcII4g7EP24/5xEU7nimN4nvAN2JjUmc+zQRWv9gWzdzbullR3c4jQ+YbSoLrmLRDLLOsuhGSf//tIxFMADOV9Vefg9AGOr+y0F6j+6r+oE5ZfdXNQy7MiHlLuyKpEQF2q/D////2/7IcaxckE9rH0JUZlJmhlQKRNBDeZ2W1rvI5MToMNA0eqZXKdSre93WtaiO9DW5kA+DyX13EKT+pl3JDrc8kZUXoDD9/NXOvRjZintfPd2o4lhgefXmpVs+ef0S57yxOfRcZk36f+OD7gaQLtY845KNCA0ssOBdXphi/ruuLzEKW1yqIVsXzSNrGsXzpJqT1pBxJXQaSA3/xV89WfoyNUasyM6x4RWZNc9epy7EvrqvfE4c33peb4Z+VNmFq3VO0ivsFonrfehKQrxwqM//tIxGEADK0zZee1ULGOpiq886Lg1i7TNKYxzgeFBqlYUC7TzD/Oc28lilTSnY3J9WBDhb17bivI+Wj5zSnTAho/5R/Ucs9TPV5NcVFc2DLRf8MzfNL6j7//r+v1wHmxf/SKaM3pLnYWqE6ag9OMYfE5YBjvtbrYi8ylBJQcBo2lYcQUSiBkiKmQU7JjXAkLJInR6POt3tQSPOtRQIjdBlkQQWBgWBL/yyLOT/6XaOKvpaqb4WyQsXP/MMk9Ttzq9afXxN/MBBzP9PcQ0X7Dpq6ve8lR0pfcMy2v3+tv/vvR5smS4wxvUhbFtZoFZJJB/alq+8BMISPY8aCb//tIxHAADK0zVefBFEGZL6ixRCsgs3rPDIWeVnvcvQAVv7BnjxrJz5ystGVNGQwZv9emitMt9Edm3QcB3S62dT1u5v2R0aeYa1ZjGAJGTCz9xYdP/1ovwUqBNW9b79x5xYphqaqHG2294pIssx0sFpgAwiGWYKMEFydcqrse1LFCoFe6Tps4uE13Ze25/yqvR3uPF2WclU9513olEubbU2iAKY5TkzskaxzvR7ufVzCs1rusTBtbtSe9PQUNpLBJ5S6iB4grqIdhddvON1rWgbohxBZDnG1FFz7n0EDRakkmlqkOnRBTX1XeRBbuhMt26jF5uh/0/g/Cnvz1//tIxH2AC/ExYaeY6xmJJes8hp6I2s6bn1t79r+PkVqzDY+Yp1TO50sq6d1cML2M+1ocR388lq/84BDJASC4sFQkDQyPLuqiWONMf/bhHxiQxFCWZdY7I7ntLWDSbdWRWX0BTqi6gHLVzVTSaeYctH0rRR65v1Uz0s6eLdDzdqi54CcR3eYfWMROP7+YZ1m+B8xu9U4in+2bZjj73M/fKWy1sd+7r37qNIc4mWZA7pa6GfdMN2pgHiCAqG0vlE/0vD41ezvMNiOgdhy//mRh+/rXVjZPrUGSQz5N8oJu/VqtZ5ckzpNi7yFOZ3CzFKmZToIpVGSZVu6IrjiH//tIxJAADL0vV+aNeIGVpi1886I3dUvCQv1C6rln9G4eCYndqHCimMQaKQ7IZX7pE98aIIa5kDPb2b2or5sbrjEskv1PdmMQabIakjqUuOO7kdmcHUxXMtykyNkQSQ45FowijkknRLHmb0ZN6qCuhNZP6UFq/mK36Br1YZ3LZpXMnQyJEFxACI1OqhLXtfYI2SQR8RB5JzwzygTEK+F0BBCmdLZz0uq7i6mfBUa/r9G/dGJusux1diENZKD0R7TXUByfoYn8l+2iMrPriT/VL0LRSjhd2Z2RhIYM2twRfzf50V/NV+rGKgmPGPgc1oJ4dJeJdRdZJKJ6TZaF//tIxJ2ADJUxUeWYuEGTpii4+ZZQLCwggQC87aZ14tJhsfZPm9siauZtwDgZVtuPKBGbb5StBBFt3N3mQ8hE/Yh2+7J0u/JIPW1mvT5AXWuqFWlLKHt91VSfwgCt/u9Oqq+qWcUNbSo0WJ7wxxtHmWy4d3G92uw4ZVproWGJNBELyQ9qBu5zLi5e7P/TeOALM/r3tBLY3YoQnpFE/Kn3uVF8MzrVGatV06cXsyvyOSMKxUemy9q6EenIhnXWOBhUx1XO6szldlPc97LRxVZxAmHahbHrbGFG21B+hTBuNXMxejrGVIyMFGTL1yiNxy4iW2xzp/kK6+P+CZcO//tIxKwADHF7W6WwtjGZr6n8sZdIcfOwsfhh/s4SiKiPrM2tUUs7KurNQ6uqlUh1uykCRDUREGyO5lnakzbPs+7Niv/ZdfSnp10Fx2xoImVJkw7h/m0Uqmd9NonR1xAMRcUFjmu3rsTjjNaykg72l3AWj+63acIGyCBCM86I5Jd6vlRVW6Ueiqmi3bKRW0Qzq5FZxNiVYyUzbFZ1s2u7/whrtW+6f0bTaqGUrmcavQ0OANMtBtNbJokBYVUm7PLJHuUSRHeVC+WCZdJKki81RzdA+x9IpAh61ztSjMgzqVA6sZxzopDzQWcFxUDD3c1ndNJ8UJxhoXn4QkI///tIxLqADIltVeWMuIGbLuq09ZYi6dk1fnnGIrn20zi+R2lWRX+kXWJSqG5aGHP4tHU1iViFd2F1skw3/IaSN2GmyVJpFOdsRuVp2jq867UbYGmz1V5CJjHsowg5rkeLHMnDpayC3FlXTurqV1o5LT56WSeN572ez9kVaURmLo/IDGXO301O1nVKnbkV1zsJC4Ml2JHxXUDPDTMw7CSS14TLN17PtYRWhOi1gOTo8Wc69R//biWZFvdQR/vQaGvojoRAhG3ZcvaprP8yEejGISgqRAbBgxTFLYqixFrGtEEMcqSUnuyr48tWKN/5GfXzfu2EBuY4GAlElaFb//tIxMiADEV9Q4ZAsomRsOgxAI8ZFQpDI0lHZRpbUOmjrcsWXIQhSicKnG4SIZN1G7VyphASD+ZV5QUpT3UcIm0x25xqTsqW0rucTOefVkX2WUH2LHPnPDld/Mc9lea1ZC76qeeZ3Vh9jaHolRcab0RDyha7JRzbX5Uq7UgGaSPUN4gEWgKEIAeRW2duquoJOH91lSa7gYyJMW7DZtrrM6nmWP4N2XEPV3LrRMbOGue6+2HGuXL305rDeH89w2DyPDfboGrndfHa1t++ZJYgXQx7yxiRy6um9PqJ/l5u1I6n876i+4ZDDdVKJmO5FA/NVf8n5//5XQSDInAQ//tIxNiADK15T+SoVEGTryn8xQqID6lOdwiiRkixKRxhBMRMps2TJRgkl8q0mNTEJ6J9SotQhAi1HFpEB3HUcxApdLXXcUs6/seMu/qJGn93+rxO/f7ABIm/qNd+p4kaINXXcKkjPv6qhSNf0cYbP/HvbRf2qjouvvDoLbSMCM4bAUAiSQoAQ1u/NihggkvSCcPw+TubSjkNQIcSzE2SWEHHeipnb6nWVhl3bNrJSZLXMZNSzqbUZz7JpKI/intt97H8Zokv0+9kgNGtVUxFxF7o2NMHx/1CUrOvllWoatq5+pSpy182xi/HdTcMax73VD2E0PG0Ag5uWQAl//tIxOaAzOF7OoTg9AHnNGZgbC6AURoQVT/EOsby4kvpdjkKLuzkmuwgAsab1EUaQnIa0Wq5mONNqkkmWX0EEr1VGqmsukskzyfpoudsmpS0zpKv9SjNfp0i4CpZaCX1l9fXjAXJHNexZsXUp2ME9Q3PMz1cSyvslX9pBcfM/YOD7Si88/LgENwKNAAlfIobAOxziv3+vTDY8tWSeVi5PlTXNsfG9ifIL5vWMsAQT9fUQR3fFWoYll75tRAGtVfqIFzcV+QMj/mINWOuNQKBKFi4/CQLQvxUlX9zxRBaL8+okEcY2sctA+XjiFY035/xaeP9RKdi0Vu4iQBI//tIxOmADiF/N2TJFAHjL6bwmK6ADQB22cbcBgnKSNR+BQEmP/VQEThUFUKM1jr7AxtZ7bNV9ZOHJO2zL4xyU5Xn0ck8z/OHEtxnr84K2cr/4DBVzj/zAMlP//Ykk8vPnkiW/vnmAYKd5xq7El085/RIBZX/fKo1GIlAy5rFAr50BoA1lllkqNM/s9flQiP8iGhBI/+ZVdXV1dVdXDc3+NXBpCWOrw8oyQiIZGSBGxOrSTThOrrclK4azK6iqk26V5JChLJqJpJpJpqLwbMkwhGjiNBNh7KJVVJeG5rKJZdh8ZKrL3rJMQiIZDw2HyiNiYlVTEFNRTMuMTAw//tIxOgADm1/N2W1FUHNr+asN6D4VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//tIxOgATbltKQMMzYHIMJtUMKV5VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//tIxIwDwAAAAAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//tIxIwDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//tIxIwDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//tIxIwDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
+var soundOn=true;
+var okAudio=new Audio(SND_OK); okAudio.preload='auto'; okAudio.volume=0.85;
+function playOK(){
+  if(!soundOn) return;
+  try{ okAudio.currentTime=0; const pr=okAudio.play(); if(pr&&pr.catch) pr.catch(function(){}); }catch(e){}
+}
+function showMaru(sel,size){
+  const host=(typeof sel==='string')?document.querySelector(sel):sel;
+  if(!host) return;
+  const img=document.createElement('img');
+  img.className='maru'; img.src=IMG_MARU; img.alt='はなまる';
+  if(size) img.style.setProperty('--mz',size);
+  host.appendChild(img);
+  setTimeout(function(){ if(img.parentNode) img.parentNode.removeChild(img); },1600);
+}
+function praise(sel,size){ playOK(); showMaru(sel,size); }
+
 /* ============ ヒトの体 SVG ============ */
-function bone(x1,y1,x2,y2,w){w=w||13;
-  return `<line class="bo" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke-width="${w}"/>`+
-         `<line class="bi" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke-width="${Math.max(w-5,2)}"/>`;
-}
-function handBones(cx,cy,dir){
-  let s=`<ellipse class="bn" cx="${cx}" cy="${cy}" rx="11" ry="9"/>`;
-  for(let i=0;i<4;i++){s+=bone(cx-6+i*4,cy+4,cx-8+i*5.5,cy+22,5);}
-  s+=bone(cx,cy+2,cx+dir*13,cy+12,5);
-  return s;
-}
-function humanSVG(joints){
-  let spine='',ribs='';
-  for(let i=0;i<9;i++) spine+=`<rect class="bn" x="143" y="${90+i*12}" width="14" height="9" rx="4"/>`;
-  for(let i=0;i<6;i++){
-    const y=106+i*11, sp=40-i*3.2, dy=17;
-    ribs+=`<path class="rib" d="M147,${y} C ${147-sp*0.7},${y-3} ${147-sp},${y+5} ${147-sp*0.8},${y+dy}"/>`;
-    ribs+=`<path class="rib" d="M153,${y} C ${153+sp*0.7},${y-3} ${153+sp},${y+5} ${153+sp*0.8},${y+dy}"/>`;
+/* ===== 全身図（正面）viewBox 0 0 300 440 ==========================
+   左半分だけを描き、右半分は translate(300,0) scale(-1,1) で折り返す。 */
+
+/* 体のおもなつなぎ目（左半身。右は 300-x） */
+const HB={
+  sh:[103,116], el:[96,192], wr:[89,258],
+  hip:[128,244], kn:[126,332], an:[123,402]
+};
+
+/* 左半分の輪かくを、右半分へ折り返してつなぐ */
+function mirrorSegs(segs){
+  let d='';
+  for(let i=segs.length-1;i>=0;i--){
+    const s=segs[i];
+    const prev=(i===0)?null:segs[i-1];
+    const px=(i===0)?150:prev[4], py=(i===0)?12:prev[5];
+    d+='C'+(300-s[2])+','+s[3]+' '+(300-s[0])+','+s[1]+' '+(300-px)+','+py+' ';
   }
-  const skin=`
-   <g class="layer skinL">
-    <line class="skl" x1="108" y1="102" x2="96" y2="172" stroke-width="27"/>
-    <line class="skl" x1="96" y1="172" x2="86" y2="244" stroke-width="23"/>
-    <ellipse class="sk" cx="82" cy="260" rx="13" ry="17"/>
-    <line class="skl" x1="192" y1="102" x2="204" y2="172" stroke-width="27"/>
-    <line class="skl" x1="204" y1="172" x2="214" y2="244" stroke-width="23"/>
-    <ellipse class="sk" cx="218" cy="260" rx="13" ry="17"/>
-    <line class="skl" x1="130" y1="232" x2="126" y2="330" stroke-width="36"/>
-    <line class="skl" x1="126" y1="330" x2="121" y2="404" stroke-width="27"/>
-    <ellipse class="sk" cx="119" cy="416" rx="15" ry="9"/>
-    <line class="skl" x1="170" y1="232" x2="174" y2="330" stroke-width="36"/>
-    <line class="skl" x1="174" y1="330" x2="179" y2="404" stroke-width="27"/>
-    <ellipse class="sk" cx="181" cy="416" rx="15" ry="9"/>
-    <rect class="sk" x="140" y="66" width="20" height="22" rx="9"/>
-    <rect class="sk" x="105" y="84" width="90" height="94" rx="28"/>
-    <rect class="sk" x="113" y="160" width="74" height="80" rx="24"/>
-    <ellipse class="sk" cx="150" cy="42" rx="28" ry="34"/>
-   </g>`;
-  const bones=`
-   <g class="layer boneL">
-    <ellipse class="bn" cx="150" cy="40" rx="26" ry="30"/>
-    <path class="bn" d="M131 58 q19 20 38 0 v9 q-19 15 -38 0 z"/>
-    <rect class="bn" x="143" y="72" width="14" height="7" rx="3"/>
-    <rect class="bn" x="143" y="81" width="14" height="7" rx="3"/>
-    ${spine}
-    <rect class="bn" x="144" y="104" width="12" height="52" rx="5"/>
-    ${ribs}
-    <path class="bo" stroke-width="7" d="M150 96 q-22 2 -42 10" fill="none"/>
-    <path class="bo" stroke-width="7" d="M150 96 q22 2 42 10" fill="none"/>
-    ${bone(108,106,96,174,15)}
-    ${bone(192,106,204,174,15)}
-    ${bone(94,178,86,244,9)}${bone(102,178,94,244,9)}
-    ${bone(206,178,214,244,9)}${bone(198,178,206,244,9)}
-    ${handBones(84,254,-1)}
-    ${handBones(216,254,1)}
-    <path class="bn" d="M116,204 C107,228 112,247 127,251 C141,255 147,240 150,231 C153,240 159,255 173,251 C188,247 193,228 184,204 C170,197 130,197 116,204 Z"/>
-    ${bone(130,240,126,332,17)}
-    ${bone(170,240,174,332,17)}
-    ${bone(125,338,121,406,12)}${bone(133,338,129,406,7)}
-    ${bone(175,338,179,406,12)}${bone(167,338,171,406,7)}
-    <ellipse class="bn" cx="118" cy="414" rx="15" ry="8"/>
-    <ellipse class="bn" cx="182" cy="414" rx="15" ry="8"/>
-    <circle class="bn" cx="108" cy="106" r="13"/><circle class="bn" cx="192" cy="106" r="13"/>
-    <circle class="bn" cx="98" cy="176" r="11"/><circle class="bn" cx="202" cy="176" r="11"/>
-    <circle class="bn" cx="128" cy="238" r="11"/><circle class="bn" cx="172" cy="238" r="11"/>
-    <circle class="bn" cx="126" cy="335" r="12"/><circle class="bn" cx="174" cy="335" r="12"/>
-   </g>`;
-  const mus=`
-   <g class="layer musL">
-    <line class="ml" x1="108" y1="104" x2="97" y2="170" stroke-width="24"/>
-    <line class="ml" x1="97" y1="172" x2="88" y2="240" stroke-width="19"/>
-    <line class="ml" x1="192" y1="104" x2="203" y2="170" stroke-width="24"/>
-    <line class="ml" x1="203" y1="172" x2="212" y2="240" stroke-width="19"/>
-    <line class="ml" x1="130" y1="234" x2="126" y2="328" stroke-width="33"/>
-    <line class="ml" x1="126" y1="330" x2="122" y2="402" stroke-width="24"/>
-    <line class="ml" x1="170" y1="234" x2="174" y2="328" stroke-width="33"/>
-    <line class="ml" x1="174" y1="330" x2="178" y2="402" stroke-width="24"/>
-    <rect class="mfill" x="109" y="88" width="82" height="88" rx="26"/>
-    <rect class="mfill" x="117" y="162" width="66" height="72" rx="22"/>
-    <rect class="mfill" x="141" y="68" width="18" height="20" rx="8"/>
-    <ellipse class="mfill" cx="108" cy="104" rx="17" ry="15"/>
-    <ellipse class="mfill" cx="192" cy="104" rx="17" ry="15"/>
-    <ellipse class="mfill" cx="134" cy="112" rx="19" ry="15"/>
-    <ellipse class="mfill" cx="166" cy="112" rx="19" ry="15"/>
-    <path class="mline" d="M150 132 v58 M132 142 h36 M132 158 h36 M132 174 h36"/>
-    <path class="mline" d="M104 122 q-6 24 -3 44 M196 122 q6 24 3 44"/>
-    <path class="mline" d="M132 250 q-6 40 -3 70 M168 250 q6 40 3 70"/>
-    <path class="mline" d="M124 348 q-4 24 -1 44 M176 348 q4 24 1 44"/>
-   </g>`;
+  return d;
+}
+/* [c1x,c1y,c2x,c2y,x,y] を上から順に */
+const BODY_SEGS=[
+  [133,12, 123,26, 123,46],      /* 頭 */
+  [122,60, 128,72, 134,78],      /* ほお〜あご */
+  [133,84, 134,90, 133,97],      /* くび（太め） */
+  [122,100, 108,102, 98,113],    /* かた（広く・角ばらせる） */
+  [93,130, 87,158, 86,192],      /* 上うでの外がわ */
+  [85,216, 83,240, 81,258],      /* 前うでの外がわ */
+  [77,274, 75,292, 80,300],      /* 手首〜手 */
+  [88,303, 95,295, 97,283],      /* 手の下 */
+  [99,270, 99,264, 99,258],      /* 手首の内がわ */
+  [102,234, 106,210, 108,192],   /* 前うでの内がわ */
+  [111,168, 113,148, 114,132],   /* 上うでの内がわ */
+  [115,128, 115,129, 116,134],   /* わきの下 */
+  [118,158, 119,178, 120,201],   /* わき腹 */
+  [116,216, 111,230, 112,246],   /* こし */
+  [109,272, 110,302, 114,332],   /* ももの外がわ */
+  [112,358, 114,378, 115,394],   /* すねの外がわ */
+  [113,406, 106,418, 106,426],   /* 足首〜足 */
+  [108,431, 116,431, 124,429],   /* つま先 */
+  [132,428, 138,424, 137,414],   /* 足の内がわ */
+  [135,404, 132,398, 131,394],
+  [133,368, 134,344, 138,328],   /* すねの内がわ */
+  [140,296, 144,268, 147,248],   /* ももの内がわ */
+  [148,246, 149,245, 150,244]
+];
+function bodyOutline(){
+  let d='M150,12 ';
+  BODY_SEGS.forEach(function(s){ d+='C'+s[0]+','+s[1]+' '+s[2]+','+s[3]+' '+s[4]+','+s[5]+' '; });
+  d+=mirrorSegs(BODY_SEGS)+'Z';
+  return d;
+}
+
+/* ---------- ほね ---------- */
+const P=function(a,b){return {x:a,y:b};};
+function hp(a,b,ra,rb){ return '<path class="bn" d="'+hullPath(P(a[0],a[1]),P(b[0],b[1]),ra,rb)+'"/>'; }
+
+/* 頭がい骨・せぼね・むね（まん中に1つだけ） */
+function boneCenter(){
+  return '<path class="bn" d="M150,11 C129,11 121,27 121,45 C121,55 123,62 126,67 L174,67 C177,62 179,55 179,45 C179,27 171,11 150,11 Z"/>'
+   + '<ellipse cx="136" cy="46" rx="9" ry="7.5" fill="#e3d8bd"/><ellipse cx="164" cy="46" rx="9" ry="7.5" fill="#e3d8bd"/>'
+   + '<path d="M150,52 l-4,10 h8 z" fill="#e3d8bd"/>'
+   + '<path class="bn" d="M137,63 h26 v5.5 h-26 z"/>'
+   + '<path d="M141,64 v4 M145,64 v4 M150,64 v4 M155,64 v4 M159,64 v4" stroke="var(--boneL)" stroke-width="0.9" opacity=".6"/>'
+   + '<path class="bn" d="M133,62 C133,74 140,79 150,79 C160,79 167,74 167,62 L163,62 C163,71 158,75 150,75 C142,75 137,71 137,62 Z"/>'
+   + [0,1,2,3,4].map(function(i){return '<rect class="bn" x="143" y="'+(80+i*7)+'" width="14" height="5.5" rx="2.5"/>';}).join('')
+   + '<rect class="bn" x="143.5" y="114" width="13" height="46" rx="5"/>'
+   + [0,1,2,3,4].map(function(i){return '<rect class="bn" x="141" y="'+(163+i*9)+'" width="18" height="7" rx="3"/>';}).join('')
+   + '<path class="bn" d="M142,208 L158,208 L155,240 L145,240 Z"/>';
+}
+/* ろっ骨・かたのほね・こしのほね（左半分） */
+function boneSide(){
+  let ribs='';
+  for(let i=0;i<10;i++){
+    const y=112+i*8.4;
+    const w=(i<6)?(33+i*3.8):(56-(i-5)*6);
+    const dy=(i<6)?20:16;
+    ribs+='<path class="rib" d="M147,'+y+' C'+(147-w*0.8)+','+(y-2)+' '+(150-w)+','+(y+dy*0.45)+' '+(150-w*0.42)+','+(y+dy)+'"/>';
+  }
+  return '<path class="bn" d="M108,110 L95,120 L101,152 L114,142 Z" opacity=".9"/>'
+   + '<path class="bo" stroke-width="7" d="M147,104 C134,98 118,100 106,113" fill="none"/>'
+   + ribs
+   + '<path class="bn" d="M147,203 C129,201 113,210 109,227 C106,242 114,254 126,255 C137,256 143,246 145,236 L147,217 Z"/>'
+   + '<ellipse class="bn" cx="128" cy="244" rx="9.5" ry="8.5"/>'
+   + '<ellipse class="bn" cx="105" cy="116" rx="10.5" ry="9.5"/>';
+}
+/* うで・あし。関節の座標をわたして左右どちらでも作れるようにする */
+function boneArmU(sh,el){
+  return '<ellipse class="bn" cx="'+sh[0]+'" cy="'+sh[1]+'" rx="10" ry="9"/>'+hp(sh,el,9.5,7);
+}
+function boneArmL(el,wr,dir){
+  let o=hp([el[0]-3.5*dir,el[1]],[wr[0]-2.5*dir,wr[1]],6.5,4.6)
+      + hp([el[0]+3.5*dir,el[1]],[wr[0]+3*dir,wr[1]],5,4.2)
+      + '<path class="bn" d="'+hullPath(P(wr[0],wr[1]+2),P(wr[0]-1*dir,wr[1]+11),6.5,7.5)+'"/>';
+  for(let i=0;i<4;i++){
+    const x0=wr[0]+(-6+i*4)*dir, x1=wr[0]+(-11+i*6.4)*dir;
+    o+='<path class="bn" d="'+hullPath(P(x0,wr[1]+11),P(x1,wr[1]+22),3.2,2.6)+'"/>'
+      +'<path class="bn" d="'+hullPath(P(x1,wr[1]+22),P(wr[0]+(-13+i*7.2)*dir,wr[1]+34),2.6,2.1)+'"/>';
+  }
+  o+='<path class="bn" d="'+hullPath(P(wr[0]+4*dir,wr[1]+10),P(wr[0]+11*dir,wr[1]+20),3,2.4)+'"/>'
+   + '<path class="bn" d="'+hullPath(P(wr[0]+11*dir,wr[1]+20),P(wr[0]+15*dir,wr[1]+28),2.4,2)+'"/>';
+  return o;
+}
+function boneLegU(hip,kn){
+  return '<ellipse class="bn" cx="'+hip[0]+'" cy="'+hip[1]+'" rx="9" ry="8"/>'+hp(hip,kn,10.5,8);
+}
+function boneLegL(kn,an,dir){
+  return '<ellipse class="bn" cx="'+kn[0]+'" cy="'+(kn[1]+4)+'" rx="7" ry="6"/>'
+   + hp([kn[0]-2*dir,kn[1]+8],[an[0]-1*dir,an[1]],7.5,5.5)
+   + hp([kn[0]+6*dir,kn[1]+8],[an[0]+6*dir,an[1]],4,3.4);
+}
+function boneFootP(an,dir){
+  let o='<path class="bn" d="'+hullPath(P(an[0],an[1]+2),P(an[0]-3*dir,an[1]+11),7,6)+'"/>';
+  for(let i=0;i<5;i++){
+    const x0=an[0]+(-5+i*3.4)*dir, x1=an[0]+(-14+i*5.4)*dir;
+    o+='<path class="bn" d="'+hullPath(P(x0,an[1]+11),P(x1,an[1]+19),3,2.4)+'"/>'
+      +'<path class="bn" d="'+hullPath(P(x1,an[1]+19),P(an[0]+(-16+i*6)*dir,an[1]+24),2.4,2)+'"/>';
+  }
+  return o;
+}
+/* 左右の関節の座標 */
+function SIDE(L){
+  const f=function(a){return L?a:[300-a[0],a[1]];};
+  return {sh:f(HB.sh), el:f(HB.el), wr:f(HB.wr), hip:f(HB.hip), kn:f(HB.kn), an:f(HB.an), dir:L?1:-1};
+}
+function boneLimbs(){
+  let o='';
+  [true,false].forEach(function(L){
+    const m=SIDE(L);
+    o+=boneArmU(m.sh,m.el)+boneArmL(m.el,m.wr,m.dir)
+      +boneLegU(m.hip,m.kn)+boneLegL(m.kn,m.an,m.dir)+boneFootP(m.an,m.dir);
+  });
+  return o;
+}
+
+/* ---------- きん肉（左半分＋まん中） ---------- */
+const MF='#f2b89f', ML='#cf8460';
+function mus(d,op){ return '<path d="'+d+'" fill="#eaa98c" stroke="'+ML+'" stroke-width="1.3" opacity="'+(op||1)+'"/>'; }
+function fib(d){ return '<path d="'+d+'" fill="none" stroke="'+ML+'" stroke-width="0.9" opacity=".45"/>'; }
+/* ぼうすい形のきん肉（すじ入り）を、はし2点とふくらむ向きから作る */
+function mband(a,b,bulge,side,w,op){
+  const sp=spindleV(P(a[0],a[1]),P(b[0],b[1]),bulge,{x:side[0],y:side[1]},w);
+  return '<path d="'+sp.d+'" fill="#eaa98c" stroke="'+ML+'" stroke-width="1.3" opacity="'+(op||1)+'"/>'
+    + sp.fib.map(function(x){return '<path d="'+x+'" fill="none" stroke="'+ML+'" stroke-width="0.9" opacity=".4"/>';}).join('');
+}
+function musCenter(){
+  let ab='';
+  for(let i=1;i<4;i++){ ab+=fib('M133,'+(159+i*15)+' H167'); }
+  return mus('M150,101 C131,101 114,109 106,124 C116,143 134,151 149,147 L150,127 Z')
+   + mus('M150,101 C169,101 186,109 194,124 C184,143 166,151 151,147 L150,127 Z')
+   + fib('M115,122 C127,134 140,140 148,142') + fib('M185,122 C173,134 160,140 152,142')
+   + mus('M134,151 C131,179 133,209 138,227 L162,227 C167,209 169,179 166,151 Z',.95)
+   + ab + fib('M150,151 V227')
+   + mband([147,86],[140,101],1.5,[-1,0],8,.9) + mband([153,86],[160,101],1.5,[1,0],8,.9)
+   + fib('M150,42 C143,46 139,53 139,61') + fib('M150,42 C157,46 161,53 161,61')
+   + fib('M143,64 C146,68 154,68 157,64');
+}
+function musSide(){
+  return mband([102,118],[98,152],2,[-1,0],24)                     /* かたのきん肉 */
+   + mband([99,136],[96,190],2,[-1,0],21)                           /* 上うで */
+   + mband([96,196],[90,252],2,[-1,0],17)                           /* 前うで */
+   + mus('M115,136 C118,158 119,180 118,200 C113,201 109,194 108,180 C107,160 110,144 115,136 Z',.9)
+   + fib('M113,148 C116,166 117,184 116,198')
+   + mband([126,254],[124,326],2,[-1,0],29)                         /* もも */
+   + fib('M136,264 C131,290 128,310 128,324')
+   + mband([123,336],[121,388],2,[-1,0],21)                         /* ふくらはぎ */
+   + mus('M96,264 C90,274 87,288 90,296 C96,298 100,290 101,278 C102,270 100,265 96,264 Z',.9)
+   + mus('M115,398 C109,408 105,418 107,424 C115,426 121,418 123,408 Z',.9);
+}
+
+/* ---------- 3つのレイヤーを組み立てる ---------- */
+function MIR(s){ return '<g transform="translate(300,0) scale(-1,1)">'+s+'</g>'; }
+
+/* ---------- 関節：ほねの絵に○をつけて、そこで折り曲げる ---------- */
+function jm(c){ return '<circle class="jmark" cx="'+c[0]+'" cy="'+c[1]+'" r="13"/>'; }
+function newPuppetSVG(marks){
+  const M=function(id){return (marks&&marks[id])?marks[id]:'';};
+  const ghost='<path class="gh" d="'+bodyOutline()+'" fill="var(--skin)" stroke="var(--skinL)" stroke-width="2"/>';
+  const side=boneSide();
+  const torso=ghost+boneCenter()+side+MIR(side);
+  function limb(L){
+    const m=SIDE(L), d=m.dir;
+    const iu=L?'armLu':'armRu', il=L?'armLl':'armRl';
+    const ju=L?'legLu':'legRu', jl=L?'legLl':'legRl', jf=L?'legLf':'legRf';
+    const rS=L?[-40,170]:[-170,40], rE=L?[-150,6]:[-6,150];
+    const rH=L?[-25,80]:[-80,25], rK=L?[-6,110]:[-110,6], rA=[-30,30];
+    const G=function(id,c,r,inner){
+      return '<g class="limb" data-id="'+id+'" data-cx="'+c[0]+'" data-cy="'+c[1]+'" data-min="'+r[0]+'" data-max="'+r[1]+'">'+inner+'</g>';
+    };
+    const arm=G(iu,m.sh,rS,
+      boneArmU(m.sh,m.el)
+      + G(il,m.el,rE, boneArmL(m.el,m.wr,d)+jm(m.el)+M(il))
+      + jm(m.sh)+M(iu));
+    const leg=G(ju,m.hip,rH,
+      boneLegU(m.hip,m.kn)
+      + G(jl,m.kn,rK, boneLegL(m.kn,m.an,d)
+          + G(jf,m.an,rA, boneFootP(m.an,d)+jm(m.an))
+          + jm(m.kn)+M(jl))
+      + jm(m.hip)+M(ju));
+    return arm+leg;
+  }
+  return '<svg viewBox="0 0 300 440" xmlns="http://www.w3.org/2000/svg">'+torso+M('root')+limb(true)+limb(false)+'</svg>';
+}
+
+function humanSVG(joints){
   let dots='', vw=300, vx=0;
   if(joints==='find'){
     JOINTS.forEach(function(j,i){ j.pos.forEach(function(p){
@@ -555,9 +714,9 @@ function humanSVG(joints){
     });
   }else if(joints==='kaki'){
     vw=364; vx=-64;
-    dots+=`<line class="ldr" x1="-6" y1="140" x2="100" y2="143"/>`+
-      `<line class="ldr" x1="-6" y1="236" x2="90" y2="182"/>`+
-      `<circle cx="98" cy="176" r="17" fill="none" stroke="#1f3446" stroke-width="2.5"/>`+
+    dots+=`<line class="ldr" x1="-6" y1="140" x2="100" y2="154"/>`+
+      `<line class="ldr" x1="-6" y1="236" x2="88" y2="200"/>`+
+      `<circle cx="96" cy="192" r="17" fill="none" stroke="#1f3446" stroke-width="2.5"/>`+
       `<circle class="kmark" cx="-22" cy="140" r="15"/><text class="ktx" x="-22" y="146" text-anchor="middle">か</text>`+
       `<text class="klab" x="-56" y="172">かたいところ</text>`+
       `<circle class="kmark" cx="-22" cy="236" r="15"/><text class="ktx" x="-22" y="242" text-anchor="middle">き</text>`+
@@ -573,80 +732,19 @@ function humanSVG(joints){
             `<text class="plab" x="${q.lab[0]}" y="${q.lab[1]}">${q.n}</text>`;
     });
   }
+  const skin='<g class="layer skinL"><path d="'+bodyOutline()+'" fill="var(--skin)" stroke="var(--skinL)" stroke-width="2" stroke-linejoin="round"/></g>';
+  const sideB=boneSide();
+  const bones='<g class="layer boneL">'+boneCenter()+sideB+MIR(sideB)+boneLimbs()+'</g>';
+  const sideM=musSide();
+  const od=bodyOutline();
+  const mus='<g class="layer musL"><defs><clipPath id="bodyClip"><path d="'+od+'"/></clipPath></defs>'
+    + '<path d="'+od+'" fill="'+MF+'" stroke="'+ML+'" stroke-width="1.6" stroke-linejoin="round"/>'
+    + '<g clip-path="url(#bodyClip)">'+sideM+MIR(sideM)+musCenter()+'</g></g>';
   return `<svg viewBox="${vx} 0 ${vw} 440" xmlns="http://www.w3.org/2000/svg">${skin}${bones}${mus}${dots}</svg>`;
 }
 
 /* ---- つまんで動かせるほね ---- */
-function puppetSVG(marks){
-  const M=function(id){return (marks&&marks[id])?marks[id]:'';};
-  const gh=function(x1,y1,x2,y2,w){return `<line class="skl gh" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke-width="${w}"/>`;};
-  let spine='',ribs='';
-  for(let i=0;i<9;i++) spine+=`<rect class="bn" x="143" y="${90+i*12}" width="14" height="9" rx="4"/>`;
-  for(let i=0;i<6;i++){
-    const y=106+i*11, sp=40-i*3.2;
-    ribs+=`<path class="rib" d="M147,${y} C ${147-sp*0.7},${y-3} ${147-sp},${y+5} ${147-sp*0.8},${y+17}"/>`;
-    ribs+=`<path class="rib" d="M153,${y} C ${153+sp*0.7},${y-3} ${153+sp},${y+5} ${153+sp*0.8},${y+17}"/>`;
-  }
-  const torso=`<g>
-    <rect class="sk gh" x="140" y="66" width="20" height="22" rx="9"/>
-    <rect class="sk gh" x="105" y="84" width="90" height="94" rx="28"/>
-    <rect class="sk gh" x="113" y="160" width="74" height="80" rx="24"/>
-    <ellipse class="sk gh" cx="150" cy="42" rx="28" ry="34"/>
-    <ellipse class="bn" cx="150" cy="40" rx="26" ry="30"/>
-    <path class="bn" d="M131 58 q19 20 38 0 v9 q-19 15 -38 0 z"/>
-    <rect class="bn" x="143" y="72" width="14" height="7" rx="3"/>
-    <rect class="bn" x="143" y="81" width="14" height="7" rx="3"/>
-    ${spine}
-    <rect class="bn" x="144" y="104" width="12" height="52" rx="5"/>
-    ${ribs}
-    <path class="bo" stroke-width="7" fill="none" d="M150 96 q-22 2 -42 10"/>
-    <path class="bo" stroke-width="7" fill="none" d="M150 96 q22 2 42 10"/>
-    <path class="bn" d="M116,204 C107,228 112,247 127,251 C141,255 147,240 150,231 C153,240 159,255 173,251 C188,247 193,228 184,204 C170,197 130,197 116,204 Z"/>
-  </g>`;
-  function arm(L){
-    const m = L ? {S:[108,106],E:[98,176],W:[88,244],H:[84,256],dir:-1,rS:[-40,170],rE:[-150,6]}
-                : {S:[192,106],E:[202,176],W:[212,244],H:[216,256],dir:1,rS:[-170,40],rE:[-6,150]};
-    const iu=L?'armLu':'armRu', il=L?'armLl':'armRl';
-    return `<g class="limb" data-id="${iu}" data-cx="${m.S[0]}" data-cy="${m.S[1]}" data-min="${m.rS[0]}" data-max="${m.rS[1]}">
-      ${gh(m.S[0],m.S[1],m.E[0],m.E[1],27)}
-      ${bone(m.S[0],m.S[1],m.E[0],m.E[1],15)}
-      <circle class="bn" cx="${m.S[0]}" cy="${m.S[1]}" r="13"/>
-      <g class="limb" data-id="${il}" data-cx="${m.E[0]}" data-cy="${m.E[1]}" data-min="${m.rE[0]}" data-max="${m.rE[1]}">
-        ${gh(m.E[0],m.E[1],m.W[0],m.W[1],23)}
-        <ellipse class="sk gh" cx="${m.H[0]}" cy="${m.H[1]}" rx="13" ry="17"/>
-        ${bone(m.E[0]-4,m.E[1]+2,m.W[0]-4,m.W[1],9)}
-        ${bone(m.E[0]+4,m.E[1]+2,m.W[0]+4,m.W[1],9)}
-        ${handBones(m.H[0],m.H[1]-4,m.dir)}
-        <circle class="bn" cx="${m.E[0]}" cy="${m.E[1]}" r="11"/>
-        ${M(il)}
-      </g>
-      ${M(iu)}
-    </g>`;
-  }
-  function leg(L){
-    const m = L ? {H:[128,238],K:[126,335],A:[121,406],F:[119,416],rH:[-25,80],rK:[-6,110],rA:[-30,30]}
-                : {H:[172,238],K:[174,335],A:[179,406],F:[181,416],rH:[-80,25],rK:[-110,6],rA:[-30,30]};
-    const iu=L?'legLu':'legRu', il=L?'legLl':'legRl', ifo=L?'legLf':'legRf';
-    return `<g class="limb" data-id="${iu}" data-cx="${m.H[0]}" data-cy="${m.H[1]}" data-min="${m.rH[0]}" data-max="${m.rH[1]}">
-      ${gh(m.H[0],m.H[1],m.K[0],m.K[1],36)}
-      ${bone(m.H[0],m.H[1]+2,m.K[0],m.K[1],17)}
-      <circle class="bn" cx="${m.H[0]}" cy="${m.H[1]}" r="11"/>
-      <g class="limb" data-id="${il}" data-cx="${m.K[0]}" data-cy="${m.K[1]}" data-min="${m.rK[0]}" data-max="${m.rK[1]}">
-        ${gh(m.K[0],m.K[1],m.A[0],m.A[1],27)}
-        ${bone(m.K[0]-4,m.K[1]+4,m.A[0]-4,m.A[1],12)}
-        ${bone(m.K[0]+4,m.K[1]+4,m.A[0]+4,m.A[1],7)}
-        <g class="limb" data-id="${ifo}" data-cx="${m.A[0]}" data-cy="${m.A[1]}" data-min="${m.rA[0]}" data-max="${m.rA[1]}">
-          <ellipse class="sk gh" cx="${m.F[0]}" cy="${m.F[1]}" rx="15" ry="9"/>
-          <ellipse class="bn" cx="${m.F[0]}" cy="${m.F[1]}" rx="15" ry="8"/>
-        </g>
-        <circle class="bn" cx="${m.K[0]}" cy="${m.K[1]}" r="12"/>
-        ${M(il)}
-      </g>
-      ${M(iu)}
-    </g>`;
-  }
-  return `<svg viewBox="0 0 300 440" xmlns="http://www.w3.org/2000/svg">${torso}${M('root')}${arm(true)}${arm(false)}${leg(true)}${leg(false)}</svg>`;
-}
+function puppetSVG(marks){ return newPuppetSVG(marks); }
 function bindPuppet(svgEl){
   const svg=svgEl||$('#stageA svg'); if(!svg) return;
   let cur=null;
@@ -691,15 +789,15 @@ $$('.tab').forEach(function(t){
 var PARTS=[
  {k:'サ',n:'頭',pos:[150,38],lab:[244,42],bend:false,
   txt:'頭のほねはしっかり組み合わさっていて、曲がりません。中ののうを守っています。'},
- {k:'シ',n:'ひじ',pos:[204,176],lab:[244,180],bend:true,
+ {k:'シ',n:'ひじ',pos:[204,192],lab:[244,180],bend:true,
   txt:'ほねとほねのつなぎ目＝関節。うでを大きく曲げのばしできます。'},
- {k:'ス',n:'ひじと手首の間',pos:[210,214],lab:[244,218],bend:false,
+ {k:'ス',n:'ひじと手首の間',pos:[208,226],lab:[244,218],bend:false,
   txt:'ここはほねのとちゅうです。関節ではないので曲がりません。'},
- {k:'セ',n:'もも',pos:[176,288],lab:[244,292],bend:false,
+ {k:'セ',n:'もも',pos:[176,290],lab:[244,292],bend:false,
   txt:'太いほねのとちゅうで、まわりをきん肉がつつんでいます。ここは曲がりません。'},
- {k:'ソ',n:'ひざ',pos:[176,336],lab:[244,340],bend:true,
+ {k:'ソ',n:'ひざ',pos:[174,332],lab:[244,340],bend:true,
   txt:'足の関節。しゃがんだり走ったりするときに大きく曲がります。'},
- {k:'タ',n:'すね',pos:[180,378],lab:[244,382],bend:false,
+ {k:'タ',n:'すね',pos:[179,372],lab:[244,382],bend:false,
   txt:'さわるとかたい、ほねのとちゅうです。曲がりません。'},
  {k:'チ',n:'足首',pos:[184,412],lab:[244,416],bend:true,
   txt:'足の先を上下に動かせる関節。地面をける力をつたえます。'}
@@ -733,7 +831,8 @@ function renderA(){
   }
 }
 /* 答え合わせ後：正解の関節（シ・ソ・チ）が曲がってみせる */
-var aRaf=null, aT=0;
+var aRaf=null, aT0=0;
+const A_DUR=2200;                     /* 片道の時間（ミリ秒） */
 function testMarks(){
   const host=['root','armRu','armRl','legRu','legRu','legRl','legRl'];
   const out={};
@@ -753,8 +852,9 @@ function setLimbA(id,deg){
 }
 function bendLoop(){
   if(!(aMode==='quiz'&&aStep===2&&qChecked)){aRaf=null;return;}
-  aT+=0.022;
-  const k=0.5-0.5*Math.cos(aT);
+  const u=((performance.now()-aT0)%(A_DUR*2))/A_DUR;
+  const x=(u<1)?u:2-u;
+  const k=x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
   setLimbA('armRl',115*k);
   setLimbA('legRl',-95*k);
   setLimbA('legRf',20*k);
@@ -762,7 +862,7 @@ function bendLoop(){
 }
 function startBendAnim(){
   if(aRaf){cancelAnimationFrame(aRaf);aRaf=null;}
-  aT=0; aRaf=requestAnimationFrame(bendLoop);
+  aT0=performance.now(); aRaf=requestAnimationFrame(bendLoop);
 }
 function applyLayer(){
   const svg=$('#stageA svg');
@@ -798,7 +898,7 @@ function resetQuiz(){
 }
 function renderStep(){
   $$('#aqSteps span').forEach(function(x,i){x.classList.toggle('now',i===aStep-1);});
-  $('#aqCheck').hidden=(aStep===3);
+  $('#aqCheck').hidden=(aStep!==2);   /* ①③は答えを入れた時点で判定 */
   $('#aqNext').textContent=(aStep===3)?'もう一度':'つぎへ';
   const body=$('#aqBody');
   if(aStep===1){
@@ -831,6 +931,7 @@ function renderStep(){
           if(x.dataset.w==='ほね') x.classList.add('correct');
           else if(x===b) x.classList.add('wrong');
         });
+        if(b.dataset.w==='ほね') praise('#pa .stage');
         $('#aTitle').textContent=(b.dataset.w==='ほね')?'せいかい！':'おしい！';
         $('#aText').textContent='答えは「ほね」。かたくてじょうぶなほねが、体をささえたり、のうや心ぞうを守ったりしています。';
       });
@@ -855,6 +956,7 @@ function bindKaki(){
       kaki[kakiActive]=c.dataset.w;
       kakiActive=(kakiActive==='ka' && !kaki.ki)?'ki':(!kaki.ka?'ka':kakiActive);
       paintKaki();
+      if(kaki.ka&&kaki.ki) judgeKaki();
     });
   });
   paintKaki();
@@ -891,9 +993,10 @@ function bindParts(){
     });
   });
 }
-$('#aqCheck').addEventListener('click',function(){
-  if(aStep===1){
-    if(!kaki.ka||!kaki.ki){ $('#aText').textContent='「か」と「き」の両方に言葉を入れてから、答え合わせをしよう。'; return; }
+/* ①：か・き の両方がうまった時点で判定する */
+function judgeKaki(){
+  if(kakiDone||!kaki.ka||!kaki.ki) return;
+  {
     kakiDone=true;
     $$('#aqBody .slot').forEach(function(sl){
       const ans=(sl.dataset.b==='ka')?'ほね':'関節';
@@ -902,12 +1005,17 @@ $('#aqCheck').addEventListener('click',function(){
       sl.textContent=ans;
     });
     const ok=(kaki.ka==='ほね'&&kaki.ki==='関節');
+    if(ok) praise('#pa .stage');
     $('#aTitle').textContent=ok?'せいかい！':'答えを見てみよう';
     $('#aText').textContent='「か」＝かたいところは ほね。「き」＝曲げられるところは 関節（ほねとほねのつなぎ目）です。';
-  }else if(aStep===2){
+  }
+}
+$('#aqCheck').addEventListener('click',function(){
+  if(aStep===2){
     if(qSel.length!==3){ $('#aText').textContent='3つえらんでから、答え合わせをしよう。'; return; }
     qChecked=true; renderA();
     const right=qSel.filter(function(i){return PARTS[i].bend;}).length;
+    if(right===3) praise('#pa .stage');
     $('#aTitle').textContent=(right===3?'ぜんせいかい！':'せいかいは '+right+'／3');
     $('#aText').innerHTML='大きく曲がる部分は <b>シ（ひじ）・ソ（ひざ）・チ（足首）</b>。どれも<b>関節</b>です。ほねが動いているようすを見てみよう。ス・セ・タはほねのとちゅうなので曲がりません。印をタップすると、それぞれのせつめいが読めます。';
   }
@@ -921,16 +1029,16 @@ renderA();
 
 /* ============ 2 関節さがし ============ */
 var JOINTS=[
- {name:'くび',pos:[[150,78]],txt:'頭を前後左右にかたむけたり、まわしたりできる関節。'},
- {name:'かた',pos:[[108,106],[192,106]],txt:'うでをぐるりと大きくまわせる関節。ボールを投げるときに使うよ。'},
- {name:'ひじ',pos:[[98,176],[202,176]],txt:'うでを曲げのばしする関節。きん肉のはたらきで動きます。'},
- {name:'手首',pos:[[88,244],[212,244]],txt:'手を上下や左右に動かせる関節。細かい動きができるよ。'},
- {name:'ゆび',pos:[[80,268],[220,268]],txt:'1本のゆびに関節がいくつもあるので、ものをしっかりつかめます。'},
- {name:'こし',pos:[[150,205]],txt:'体を前に曲げたり、ひねったりできるところ。せぼねがつながっています。'},
- {name:'ひざ',pos:[[126,335],[174,335]],txt:'足を曲げのばしする関節。走ったりジャンプしたりするときに大かつやく。'},
- {name:'足首',pos:[[118,410],[182,410]],txt:'足の先を上げ下げできる関節。地面をける力を伝えます。'}
+ {name:'くび',pos:[[150,88]],txt:'頭を前後左右にかたむけたり、まわしたりできる関節。'},
+ {name:'かた',pos:[[103,116],[197,116]],txt:'うでをぐるりと大きくまわせる関節。ボールを投げるときに使うよ。'},
+ {name:'ひじ',pos:[[96,192],[204,192]],txt:'うでを曲げのばしする関節。きん肉のはたらきで動きます。'},
+ {name:'手首',pos:[[89,258],[211,258]],txt:'手を上下や左右に動かせる関節。細かい動きができるよ。'},
+ {name:'ゆび',pos:[[82,288],[218,288]],txt:'1本のゆびに関節がいくつもあるので、ものをしっかりつかめます。'},
+ {name:'こし',pos:[[150,198]],txt:'体を前に曲げたり、ひねったりできるところ。せぼねがつながっています。'},
+ {name:'ひざ',pos:[[126,332],[174,332]],txt:'足を曲げのばしする関節。走ったりジャンプしたりするときに大かつやく。'},
+ {name:'足首',pos:[[123,402],[177,402]],txt:'足の先を上げ下げできる関節。地面をける力を伝えます。'}
 ];
-var bFound=[];
+var bFound=[], bAllDone=false;
 (function(){
   const ul=$('#bList');
   JOINTS.forEach(function(j,i){
@@ -949,6 +1057,7 @@ var bFound=[];
       $('#bCount').textContent=bFound.length;
       $('#bTitle').textContent=j.name;
       $('#bText').textContent=j.txt+(bFound.length===8?' ／ ぜんぶ見つけたね！ 曲がるところは、どこもほねとほねのつなぎ目（関節）だよ。':'');
+      if(bFound.length===8 && !bAllDone){ bAllDone=true; praise('#pb .stage'); }
     });
   });
 })();
@@ -959,28 +1068,15 @@ function lerpColor(a,b,t){
   const A=p(a),B=p(b);
   return 'rgb('+A.map(function(v,i){return Math.round(v+(B[i]-v)*t);}).join(',')+')';
 }
-function armBody(){ return `
-  <g>
-    <line class="skl" x1="34" y1="156" x2="24" y2="248" stroke-width="26"/>
-    <ellipse class="sk" cx="22" cy="262" rx="12" ry="16"/>
-    <rect class="sk" x="28" y="122" width="76" height="198" rx="30"/>
-    <rect class="sk" x="52" y="98" width="24" height="32" rx="11"/>
-    <ellipse class="sk" cx="64" cy="70" rx="31" ry="35"/>
-    <path fill="var(--skin)" stroke="var(--skinL)" stroke-width="2" d="M34,62 q-10,8 -4,18 q4,4 8,1 z"/>
-    <path fill="var(--skin)" stroke="var(--skinL)" stroke-width="2" d="M94,62 q10,8 4,18 q-4,4 -8,1 z"/>
-    <path d="M33,66 C31,20 97,20 95,66 C90,42 80,34 64,34 C48,34 38,42 33,66 Z" fill="#4b382e"/>
-    <circle cx="52" cy="72" r="3.6" fill="#4b382e"/>
-    <circle cx="76" cy="72" r="3.6" fill="#4b382e"/>
-    <path d="M56,88 q8,7 16,1" fill="none" stroke="#d79c79" stroke-width="2.6" stroke-linecap="round"/>
-    <circle class="sk" cx="104" cy="152" r="33"/>
-  </g>`;}
 function armStageSVG(){ return `
-<svg viewBox="0 0 360 320" xmlns="http://www.w3.org/2000/svg">
-  ${armBody()}
-  <g id="armSkin"></g>
-  <g id="armMus"></g>
-  <g id="armBone"></g>
-  <g id="armLab"></g>
+<svg viewBox="-50 0 410 320" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(-86,36) scale(1.19)">
+    <g id="armSkin"></g>
+    <g id="armBone"></g>
+    <g id="armMus"></g>
+    <g id="armJoint"></g>
+    <g id="armLab"></g>
+  </g>
   <g>
     <rect x="212" y="18" width="136" height="38" rx="19" fill="#fff" stroke="#1e9ec4" stroke-width="2.5"/>
     <text x="280" y="43" text-anchor="middle" font-size="20" fill="#1f3446" id="ttlTx">うでをのばす</text>
@@ -990,13 +1086,6 @@ $('#stageC').innerHTML=armStageSVG();
 const S={x:104,y:155}, E={x:200,y:155}, FL=95, MAXD=130;
 let curT=0, hideMode=false, ansState={a:null,b:null}, lastBent=false;
 
-function bandPath(o,p,bulge,upward){
-  const vx=p.x-o.x, vy=p.y-o.y, L=Math.hypot(vx,vy)||1;
-  let nx=-vy/L, ny=vx/L;
-  if((upward && ny>0)||(!upward && ny<0)){nx=-nx;ny=-ny;}
-  const mx=(o.x+p.x)/2+nx*bulge, my=(o.y+p.y)/2+ny*bulge;
-  return {d:`M${o.x},${o.y} Q${mx},${my} ${p.x},${p.y}`, mx:mx, my:my, nx:nx, ny:ny};
-}
 function labelMark(ch,mx,my,tx,ty){
   return `<line x1="${mx}" y1="${my}" x2="${tx}" y2="${ty}" stroke="#1f3446" stroke-width="1.6"/>`+
    `<circle cx="${mx}" cy="${my}" r="14" fill="#fff" stroke="#1f3446" stroke-width="2.2"/>`+
@@ -1004,53 +1093,183 @@ function labelMark(ch,mx,my,tx,ty){
 }
 const clamp=function(v,a,b){return Math.max(a,Math.min(b,v));};
 
+/* ============ うでの図（教科書ふうに描き直し） ============ */
+function ptsJoin(a){ return a.map(function(p){return p[0].toFixed(1)+','+p[1].toFixed(1);}).join(' L'); }
+function arcPts(cx,cy,r,a0,a1,n){
+  const o=[]; for(let i=0;i<=n;i++){const th=a0+(a1-a0)*i/n; o.push([cx+r*Math.cos(th),cy+r*Math.sin(th)]);} return o;
+}
+/* 両はしの太さがちがう「ほね」の形（2つの円をつつむ形） */
+function hullPath(a,b,ra,rb){
+  const dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy)||1;
+  const base=Math.atan2(dy,dx);
+  const al=Math.acos(Math.max(-1,Math.min(1,(ra-rb)/d)));
+  const p=arcPts(b.x,b.y,rb,base-al,base+al,7)
+     .concat(arcPts(a.x,a.y,ra,base+al,base+2*Math.PI-al,10));
+  return 'M'+ptsJoin(p)+' Z';
+}
+/* ぼうすい形のきん肉（まん中がふくらみ、両はしはけんになって細くなる） */
+function spindle(o,p,bulge,upward,w){ return spindleV(o,p,bulge,{x:0,y:upward?-1:1},w); }
+/* side = ふくらませたい向きのベクトル */
+function spindleV(o,p,bulge,side,w){
+  const vx=p.x-o.x, vy=p.y-o.y, L=Math.hypot(vx,vy)||1;
+  let nx=-vy/L, ny=vx/L;
+  if(nx*side.x+ny*side.y<0){nx=-nx;ny=-ny;}
+  const cx=(o.x+p.x)/2+nx*bulge*2, cy=(o.y+p.y)/2+ny*bulge*2;
+  const qp=function(u){const v=1-u;return {x:v*v*o.x+2*v*u*cx+u*u*p.x, y:v*v*o.y+2*v*u*cy+u*u*p.y};};
+  const qt=function(u){const v=1-u;return {x:2*v*(cx-o.x)+2*u*(p.x-cx), y:2*v*(cy-o.y)+2*u*(p.y-cy)};};
+  const hw=function(u){return w/2*Math.pow(Math.sin(Math.PI*u),0.55);};
+  const N=20, up=[], dn=[];
+  for(let i=0;i<=N;i++){
+    const u=i/N, q=qp(u), tt=qt(u), l=Math.hypot(tt.x,tt.y)||1;
+    const mx=-tt.y/l, my=tt.x/l, h=hw(u);
+    up.push([q.x+mx*h, q.y+my*h]); dn.push([q.x-mx*h, q.y-my*h]);
+  }
+  const d='M'+ptsJoin(up)+' L'+ptsJoin(dn.slice().reverse())+' Z';
+  const fib=[];
+  [-0.66,-0.34,0,0.34,0.66].forEach(function(k){
+    const line=[];
+    for(let i=0;i<=12;i++){
+      const u=0.05+0.90*i/12, q=qp(u), tt=qt(u), l=Math.hypot(tt.x,tt.y)||1;
+      const h=hw(u)*k;
+      line.push([q.x-tt.y/l*h, q.y+tt.x/l*h]);
+    }
+    fib.push('M'+ptsJoin(line));
+  });
+  const m=qp(0.5);
+  return {d:d, fib:fib, mx:m.x, my:m.y, nx:nx, ny:ny, hw:hw(0.5)};
+}
+
+/* きん肉のぬり分け：ちぢむほど太く濃いオレンジになる（色はここ1か所） */
+function paintMus(s,t){
+  const f=lerpColor('#f2b592','#d95f28',t), l=lerpColor('#c88a63','#a03d16',t);
+  return '<path d="'+s.d+'" fill="'+f+'" stroke="'+l+'" stroke-width="1.8" stroke-linejoin="round"/>'
+    + s.fib.map(function(x){return '<path d="'+x+'" fill="none" stroke="'+l+'" stroke-width="1.1" opacity=".42" stroke-linecap="round"/>';}).join('');
+}
+
+/* にぎりこぶしの輪かく（手のこう＝なめらか、指がわ＝3つのふくらみ） */
+function fistOutline(W,d,pp,ang){
+  const C={x:W.x+d.x*15, y:W.y+d.y*15};
+  const o=[];
+  for(let i=0;i<=18;i++){                 /* 指がわ：まるめた指のでこぼこ */
+    const u=i/18, th=ang+Math.PI/2*u;
+    const r=23+4.5*Math.abs(Math.sin(3*Math.PI*u));
+    o.push([C.x+r*Math.cos(th), C.y+r*Math.sin(th)]);
+  }
+  for(let i=1;i<=10;i++){                 /* 手のこうがわ：なめらか */
+    const th=ang+Math.PI/2+Math.PI/2*(i/10);
+    o.push([C.x+23.5*Math.cos(th), C.y+23.5*Math.sin(th)]);
+  }
+  return o;
+}
+/* こぶしの中のほね（手首のほね＋てのひらのほね＋まるめた指のほね） */
+function fistBones(W,d,pp){
+  const P=function(a,b){return {x:W.x+d.x*a+pp.x*b, y:W.y+d.y*a+pp.y*b};};
+  let s='<path class="bn" d="'+hullPath(P(0,-6),P(3,6),7.5,7)+'"/>';
+  [-5,2].forEach(function(k){            /* 指2れつぶんを少しずらして重ねる */
+    s+='<path class="bn" d="'+hullPath(P(9,k),P(25,k-2),4.5,3.8)+'"/>'    /* てのひらのほね */
+      +'<path class="bn" d="'+hullPath(P(25,k-2),P(32,k+9),3.8,3.2)+'"/>' /* 指の第1かんせつ */
+      +'<path class="bn" d="'+hullPath(P(32,k+9),P(21,k+17),3.2,2.8)+'"/>';/* まるめた指先 */
+  });
+  s+='<path class="bn" d="'+hullPath(P(6,10),P(20,16),4,3.2)+'"/>';       /* おや指 */
+  return s;
+}
+
+
+const ARM_TF='translate(-86,36) scale(1.19)';
+/* うでの絵を1か所で作る（しらべる・もけい・テストで共通して使う）
+   deg = ひじの角度、ta =「あ」のちぢみ具合、tb =「い」のちぢみ具合（0〜1）
+   opt.fused  … 関節なし（ほねが1本）      opt.noMus … きん肉なし
+   opt.dots   … 手の関節にオレンジの点     opt.joint=false … ひじの印をかくす */
+function armPieces(deg,ta,tb,opt){
+  opt=opt||{};
+  const bend=deg/MAXD, th=deg*Math.PI/180;
+  const d={x:Math.cos(th), y:-Math.sin(th)};
+  const pp={x:d.y, y:-d.x};
+  const n1={x:0, y:-1};
+  const W={x:E.x+FL*d.x, y:E.y+FL*d.y};
+
+  /* ---- 皮ふ（ちぢんだ側がふくらむ） ---- */
+  let bx=n1.x+pp.x, by=n1.y+pp.y; const bl=Math.hypot(bx,by)||1; bx/=bl; by/=bl;
+  const kIn=23-12*bend, ang=Math.atan2(pp.y,pp.x);
+  const MU=(S.x+E.x)/2, upB=26+9*ta, dnB=26+9*tb;
+  const sk=[[S.x+n1.x*25, S.y+n1.y*25],[MU, S.y+n1.y*upB],[E.x+n1.x*23, E.y+n1.y*23],
+            [E.x+bx*kIn, E.y+by*kIn],[E.x+pp.x*22, E.y+pp.y*22],[W.x+pp.x*20, W.y+pp.y*20]]
+    .concat(fistOutline(W,d,pp,ang))
+    .concat([[E.x-pp.x*22, E.y-pp.y*22]])
+    .concat(arcPts(E.x,E.y,23,Math.PI/2-th,Math.PI/2,12))
+    .concat([[MU, S.y-n1.y*dnB],[S.x-n1.x*25, S.y-n1.y*25]])
+    .concat(arcPts(S.x,S.y,25,Math.PI/2,Math.PI*1.5,10));
+  const skin='<path d="M'+ptsJoin(sk)+' Z" fill="#fff4e9" stroke="var(--skinL)" stroke-width="2" stroke-linejoin="round"/>';
+
+  /* ---- ほね ---- */
+  let bones;
+  if(opt.fused){
+    bones='<path class="bn" d="'+hullPath(S,W,13,7.5)+'"/>';
+  }else{
+    const ul={x:E.x-pp.x*3.5, y:E.y-pp.y*3.5}, rd={x:E.x+pp.x*4.5, y:E.y+pp.y*4.5};
+    const ulW={x:W.x-pp.x*2, y:W.y-pp.y*2},    rdW={x:W.x+pp.x*4, y:W.y+pp.y*4};
+    bones='<path class="bn" d="'+hullPath(S,E,13,10.5)+'"/>'
+        + '<path class="bn" d="'+hullPath({x:E.x-pp.x*6,y:E.y-pp.y*6},{x:E.x+pp.x*6,y:E.y+pp.y*6},7,7)+'"/>'
+        + '<path class="bn" d="'+hullPath(ul,ulW,7.5,5.5)+'"/>'
+        + '<path class="bn" d="'+hullPath(rd,rdW,5.5,7)+'"/>';
+  }
+  bones+=fistBones(W,d,pp);
+  if(opt.dots) bones+=fistJointDots(W,d,pp);
+
+  /* ---- きん肉 ---- */
+  const O1={x:S.x+6, y:S.y-14}, A1={x:E.x+d.x*27+pp.x*5, y:E.y+d.y*27+pp.y*5};
+  const O2={x:S.x+3, y:S.y+14}, B1={x:E.x-pp.x*13, y:E.y-pp.y*13};
+  const s1=spindle(O1,A1, 3+4*ta, true,  19+14*ta);
+  const s2=spindle(O2,B1, 3+4*tb, false, 19+14*tb);
+  const mus=opt.noMus?'':(paintMus(s2,tb)+paintMus(s1,ta));
+
+  /* ---- 関節（ひじ） ---- */
+  let joint='';
+  if(opt.fused){
+    joint='<text x="'+((S.x+W.x)/2).toFixed(0)+'" y="'+(S.y+62)+'" text-anchor="middle" font-size="15" fill="#4a6377">ほねが1本＝関節がない</text>';
+  }else if(opt.joint!==false){
+    joint='<circle cx="'+E.x+'" cy="'+E.y+'" r="14" fill="none" stroke="#f5821f" stroke-width="2.6" stroke-dasharray="5 4"/>'
+        + '<text x="'+(E.x+20)+'" y="'+(E.y+36)+'" font-size="14" fill="#4a6377">関節（ひじ）</text>';
+  }
+  return {skin:skin, bones:bones, mus:mus, joint:joint, s1:s1, s2:s2, d:d, pp:pp, W:W, bend:bend};
+}
+/* 手の関節（オレンジの点） */
+function fistJointDots(W,d,pp){
+  const P=function(a,b){return {x:W.x+d.x*a+pp.x*b, y:W.y+d.y*a+pp.y*b};};
+  let s='';
+  const put=function(p){ s+='<circle class="fj" cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="3.4"/>'; };
+  put(P(2,0));
+  [-5,2].forEach(function(k){ put(P(25,k-2)); put(P(32,k+9)); put(P(21,k+17)); });
+  put(P(6,10)); put(P(20,16));
+  return s;
+}
+/* あ・い のふきだし位置は固定（うでを動かしても場所が変わらないようにする）。
+   テストの ア・イ の印も同じ場所に置いてあります。 */
+const LAB_A={x:53,y:56}, LAB_B={x:120,y:215};
+function armLabels(g){
+  return labelMark('あ',LAB_A.x,LAB_A.y,g.s1.mx,g.s1.my)
+       + labelMark('い',LAB_B.x,LAB_B.y,g.s2.mx,g.s2.my);
+}
+
 function drawArm(deg){
   if(!$('#armSkin')) return;
   const t=deg/MAXD; curT=t;
-  const th=deg*Math.PI/180;
-  const d={x:Math.cos(th), y:-Math.sin(th)};
-  const pp={x:d.y, y:-d.x};
-  const W={x:E.x+FL*d.x, y:E.y+FL*d.y};
-  const H={x:E.x+(FL+17)*d.x, y:E.y+(FL+17)*d.y};
-
-  $('#armSkin').innerHTML=
-    `<line class="skl" x1="${S.x}" y1="${S.y}" x2="${E.x}" y2="${E.y}" stroke-width="52"/>`+
-    `<line class="skl" x1="${E.x}" y1="${E.y}" x2="${W.x}" y2="${W.y}" stroke-width="44"/>`+
-    `<circle class="sk" cx="${H.x}" cy="${H.y}" r="19"/>`;
-
-  const O1={x:S.x+10, y:S.y-16}, A={x:E.x+28*d.x+10*pp.x, y:E.y+28*d.y+10*pp.y};
-  const O2={x:S.x+8,  y:S.y+16}, B={x:E.x-6*d.x-18*pp.x,  y:E.y-6*d.y-18*pp.y};
-  const b1=bandPath(O1,A,14+22*t,true);
-  const b2=bandPath(O2,B,14+22*(1-t),false);
-  const c1=lerpColor('#f8cfc0','#d3502c',t), c2=lerpColor('#f8cfc0','#d3502c',1-t);
-  const w1=17+13*t, w2=17+13*(1-t);
-  $('#armMus').innerHTML=
-   `<path d="${b2.d}" fill="none" stroke="${c2}" stroke-width="${w2}" stroke-linecap="round"/>`+
-   `<path d="${b1.d}" fill="none" stroke="${c1}" stroke-width="${w1}" stroke-linecap="round"/>`;
-
-  $('#armBone').innerHTML=
-    bone(S.x,S.y,E.x,E.y,14)+
-    bone(E.x+4*pp.x,E.y+4*pp.y,W.x+4*pp.x,W.y+4*pp.y,8)+
-    bone(E.x-4*pp.x,E.y-4*pp.y,W.x-4*pp.x,W.y-4*pp.y,8)+
-    `<circle class="bn" cx="${S.x}" cy="${S.y}" r="13"/>`+
-    `<circle class="bn" cx="${W.x}" cy="${W.y}" r="8"/>`+
-    `<circle cx="${E.x}" cy="${E.y}" r="12" fill="#fff" stroke="#f5821f" stroke-width="3"/>`+
-    `<text x="${E.x+16}" y="${E.y+34}" font-size="14" fill="#4a6377">関節（ひじ）</text>`;
-
-  const m1x=clamp(b1.mx+b1.nx*(w1/2+26),24,336), m1y=clamp(b1.my+b1.ny*(w1/2+26),74,296);
-  const m2x=clamp(b2.mx+b2.nx*(w2/2+26),24,336), m2y=clamp(b2.my+b2.ny*(w2/2+26),24,296);
-  $('#armLab').innerHTML=labelMark('あ',m1x,m1y,b1.mx,b1.my)+labelMark('い',m2x,m2y,b2.mx,b2.my);
-
+  const g=armPieces(deg,t,1-t);
+  $('#armSkin').innerHTML=g.skin;
+  $('#armBone').innerHTML=g.bones;
+  $('#armMus').innerHTML=g.mus;
+  $('#armJoint').innerHTML=g.joint;
+  $('#armLab').innerHTML=armLabels(g,t);
   $('#ttlTx').textContent = t>0.08 ? 'うでを曲げる' : 'うでをのばす';
   $('#cText').textContent = t>0.08
     ? '内側（あ）のきん肉がちぢみ、外側（い）のきん肉がゆるむことで、うでが曲がります。ちぢんだきん肉はふくらんで、さわるとかたくなります。'
     : '内側（あ）のきん肉がゆるみ、外側（い）のきん肉がちぢむことで、うでがのびます。きん肉は関節をまたいでほねについています。';
-
   const bent=t>0.08;
   if(bent!==lastBent){lastBent=bent; ansState={a:null,b:null}; clearChoiceUI();}
   refreshStates();
   updateGauges(t);
 }
+
 /* きん肉の ながさ・ふとさ ゲージ */
 function updateGauges(t){
   const set=function(id,v){const el=$(id); if(el) el.style.width=Math.round(v)+'%';};
@@ -1070,7 +1289,11 @@ $$('.mchoice button').forEach(function(b){
   b.addEventListener('click',function(){
     if(!hideMode) return;
     const m=b.parentNode.dataset.m;
-    if(b.dataset.v===answerOf(m)){ ansState[m]=true; b.classList.add('ok'); b.classList.remove('no'); }
+    if(b.dataset.v===answerOf(m)){
+      ansState[m]=true; b.classList.add('ok'); b.classList.remove('no');
+      playOK();
+      if(ansState.a && ansState.b) showMaru('#pc .stage');
+    }
     else { b.classList.add('no'); setTimeout(function(){b.classList.remove('no');},900); }
     refreshStates();
   });
@@ -1086,7 +1309,7 @@ $('#btnHide').addEventListener('click',function(){
 const range=$('#angle');
 range.addEventListener('input',function(){drawArm(+range.value);});
 function animateTo(target){
-  const start=+range.value, t0=performance.now(), dur=650;
+  const start=+range.value, t0=performance.now(), dur=2200;
   (function step(now){
     const k=Math.min(1,(now-t0)/dur), e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
     range.value=Math.round(start+(target-start)*e); drawArm(+range.value);
@@ -1099,62 +1322,47 @@ drawArm(0);
 
 /* ---- もけい：きん肉がちぢんでほねを引っぱる ---- */
 var mdlAng=0, mdlTarget=0, mdlRaf=null, mdlFail='none', mdlPull=null;
-const MDL_P={x:200,y:151}, MDL_MAX=112;
+const MDL_MAX=MAXD;
 function rotPt(p,c,deg){
   const r=deg*Math.PI/180, cs=Math.cos(r), sn=Math.sin(r);
   const dx=p.x-c.x, dy=p.y-c.y;
   return {x:c.x+dx*cs-dy*sn, y:c.y+dx*sn+dy*cs};
 }
 function modelSVG(){
-  const fused=(mdlFail==='joint');
-  const ang=fused?0:-mdlAng;
-  const k=mdlAng/MDL_MAX;
-  const P=MDL_P;
-  const fixed=`<rect class="wood" x="72" y="142" width="130" height="18" rx="7"/>`;
-  const moveInner=`<rect class="wood" x="198" y="142" width="118" height="18" rx="7"/>`+
-    `<circle class="sk" cx="322" cy="151" r="15"/>`;
-  const move=fused
-    ? moveInner
-    : `<g transform="rotate(${ang.toFixed(1)} ${P.x} ${P.y})">${moveInner}</g>`;
-  let mus='';
-  if(mdlFail!=='mus'){
-    const A0={x:250,y:143}, B0={x:236,y:159};
-    const A=fused?A0:rotPt(A0,P,ang), B=fused?B0:rotPt(B0,P,ang);
-    const O1={x:88,y:137}, O2={x:88,y:165};
-    const ka=(mdlFail==='joint')?(mdlPull==='a'?1:0):k;
-    const kb=(mdlFail==='joint')?(mdlPull==='b'?1:0):1-k;
-    const b1=bandPath(O1,A,10+20*ka,true), b2=bandPath(O2,B,10+20*kb,false);
-    const c1=lerpColor('#f8cfc0','#d3502c',ka), c2=lerpColor('#f8cfc0','#d3502c',kb);
-    mus=`<path d="${b2.d}" fill="none" stroke="${c2}" stroke-width="${15+13*kb}" stroke-linecap="round"/>`+
-        `<path d="${b1.d}" fill="none" stroke="${c1}" stroke-width="${15+13*ka}" stroke-linecap="round"/>`+
-        labelMark('あ',b1.mx+b1.nx*32,b1.my+b1.ny*32,b1.mx,b1.my)+
-        labelMark('い',b2.mx+b2.nx*32,b2.my+b2.ny*32,b2.mx,b2.my);
-  }
-  const joint=fused
-    ? `<rect class="wood" x="186" y="142" width="28" height="18" rx="4"/><text class="mdlLab" x="200" y="286" text-anchor="middle">関節がない</text>`
-    : `<circle class="pin" cx="${P.x}" cy="${P.y}" r="11"/><text class="mdlLab" x="${P.x}" y="286" text-anchor="middle">↑ここが関節</text>`;
-  return `<svg viewBox="0 0 360 320" xmlns="http://www.w3.org/2000/svg">
-    <rect x="30" y="120" width="46" height="120" rx="12" fill="#dfe9f0"/>
-    <text class="mdlLab" x="53" y="256" text-anchor="middle">かた</text>
-    ${fixed}${move}${mus}${joint}
-  </svg>`;
+  const fused=(mdlFail==='joint'), noMus=(mdlFail==='mus');
+  const deg=fused?0:mdlAng, t=deg/MAXD;
+  const ta=fused?(mdlPull==='a'?1:0):t;
+  const tb=fused?(mdlPull==='b'?1:0):1-t;
+  const g=armPieces(deg,ta,tb,{fused:fused,noMus:noMus});
+  const lab=noMus?'':armLabels(g,t);
+  const ttl=noMus?'きん肉がない':(fused?'関節がない':(t>0.08?'うでが曲がる':'うでがのびる'));
+  return '<svg viewBox="-50 0 410 320" xmlns="http://www.w3.org/2000/svg">'
+    +'<g transform="'+ARM_TF+'">'+g.skin+g.bones+g.mus+g.joint+lab+'</g>'
+    +'<g><rect x="212" y="18" width="136" height="38" rx="19" fill="#fff" stroke="#1e9ec4" stroke-width="2.5"/>'
+    +'<text x="280" y="43" text-anchor="middle" font-size="18" fill="#1f3446">'+ttl+'</text></g></svg>';
 }
+var mdlFrom=0, mdlT0=0;
+const MDL_DUR=2200;                     /* ゆっくり動かす（ミリ秒） */
 function modelLoop(){
   if(cMode!=='model'){mdlRaf=null;return;}
-  const d=mdlTarget-mdlAng;
-  if(Math.abs(d)<0.6){ mdlAng=mdlTarget; $('#stageC').innerHTML=modelSVG(); mdlRaf=null; return; }
-  mdlAng+=d*0.12;
+  const k=Math.min(1,(performance.now()-mdlT0)/MDL_DUR);
+  const e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+  mdlAng=mdlFrom+(mdlTarget-mdlFrom)*e;
   $('#stageC').innerHTML=modelSVG();
+  if(k>=1){ mdlAng=mdlTarget; mdlRaf=null; return; }
   mdlRaf=requestAnimationFrame(modelLoop);
 }
-function modelGo(){ if(!mdlRaf) mdlRaf=requestAnimationFrame(modelLoop); }
+function modelGo(){
+  mdlFrom=mdlAng; mdlT0=performance.now();
+  if(!mdlRaf) mdlRaf=requestAnimationFrame(modelLoop);
+}
 $$('#mdlBtns button').forEach(function(b){
   b.addEventListener('click',function(){
     const k=b.dataset.k;
     mdlPull=k;
     if(mdlFail==='mus'){
       $('#cTitle').textContent='きん肉がない';
-      $('#cText').textContent='引っぱるものがないので、ほねは動きません。ほねだけでは体を動かせないのですね。';
+      $('#cText').textContent='ほねを引っぱるものがないので、うでは動きません。ほねだけでは体を動かせないのですね。';
       $('#stageC').innerHTML=modelSVG(); return;
     }
     if(mdlFail==='joint'){
@@ -1179,49 +1387,18 @@ $$('#mdlFail button').forEach(function(b){
     $('#cText').textContent=(mdlFail==='none')
       ? '「あ をちぢめる」「い をちぢめる」ボタンをおしてみよう。'
       : (mdlFail==='joint'
-        ? '2本のほねを1本につなげました。この状態で「あ をちぢめる」をおしてみよう。'
-        : 'きん肉（ゴム）を外しました。この状態で「あ をちぢめる」をおしてみよう。');
+        ? '上うでと前うでのほねを1本につなげました。この状態で「あ をちぢめる」をおしてみよう。'
+        : 'あ・い のきん肉を外しました。この状態で「あ をちぢめる」をおしてみよう。');
   });
 });
 var cMode='look', cStep=1, cAns={1:null,2:null,3:null}, cDone={1:false,2:false,3:false};
 const C_ANS={1:'ア',2:'手',3:'関節'};
 
 function quizArmSVG(){
-  const deg=112, th=deg*Math.PI/180;
-  const d={x:Math.cos(th), y:-Math.sin(th)}, pp={x:d.y, y:-d.x};
-  const W={x:E.x+FL*d.x, y:E.y+FL*d.y};
-  const H={x:E.x+(FL+9)*d.x, y:E.y+(FL+9)*d.y};
-  const rot=Math.atan2(-d.x,d.y)*180/Math.PI;
-
-  const skin=`<circle class="sk" cx="${S.x}" cy="${S.y}" r="33"/>`+
-    `<line class="skl" x1="${S.x}" y1="${S.y}" x2="${E.x}" y2="${E.y}" stroke-width="52"/>`+
-    `<line class="skl" x1="${E.x}" y1="${E.y}" x2="${W.x}" y2="${W.y}" stroke-width="44"/>`;
-
-  const O1={x:S.x+10, y:S.y-16}, A={x:E.x+28*d.x+10*pp.x, y:E.y+28*d.y+10*pp.y};
-  const O2={x:S.x+8,  y:S.y+16}, B={x:E.x-6*d.x-18*pp.x,  y:E.y-6*d.y-18*pp.y};
-  const b1=bandPath(O1,A,22,true), b2=bandPath(O2,B,22,false);
-  const c1=cDone[1]?'#d3502c':'#f8cfc0', w1=cDone[1]?30:21;
-  const mus=`<path d="${b2.d}" fill="none" stroke="#f8cfc0" stroke-width="21" stroke-linecap="round"/>`+
-            `<path d="${b1.d}" fill="none" stroke="${c1}" stroke-width="${w1}" stroke-linecap="round"/>`;
-
-  let fj='';
-  if(cDone[3]){
-    for(let i=0;i<4;i++){
-      fj+=`<circle class="fj" cx="${H.x-7+i*4.75}" cy="${H.y+13}" r="2.8"/>`;
-      fj+=`<circle class="fj" cx="${H.x-8+i*5.5}" cy="${H.y+21}" r="2.8"/>`;
-    }
-    fj+=`<circle class="fj" cx="${H.x+6.5}" cy="${H.y+7}" r="2.8"/>`;
-    fj+=`<circle class="fj" cx="${H.x+13}" cy="${H.y+12}" r="2.8"/>`;
-    fj+=`<circle class="fj" cx="${H.x}" cy="${H.y-6}" r="2.8"/>`;
-  }
-  const bones=bone(S.x,S.y,E.x,E.y,14)+
-    bone(E.x+4*pp.x,E.y+4*pp.y,W.x+4*pp.x,W.y+4*pp.y,8)+
-    bone(E.x-4*pp.x,E.y-4*pp.y,W.x-4*pp.x,W.y-4*pp.y,8)+
-    `<circle class="bn" cx="${S.x}" cy="${S.y}" r="13"/>`+
-    `<g transform="rotate(${rot.toFixed(1)} ${H.x} ${H.y})">${handBones(H.x,H.y,1)}${fj}</g>`+
-    `<circle class="bn" cx="${E.x}" cy="${E.y}" r="12"/>`;
-
-  const st=(n,ch)=>{
+  const deg=112;
+  const ta=cDone[1]?1:0.4, tb=cDone[1]?0.12:0.4;   /* 答え合わせまでは差をつけない */
+  const g=armPieces(deg,ta,tb,{joint:false,dots:cDone[3]});
+  const st=function(n,ch){
     let c='';
     if(cDone[n]){ if(ch===C_ANS[n]) c=' ok'; else if(cAns[n]===ch) c=' ng'; }
     else if(cAns[n]===ch) c=' sel';
@@ -1229,26 +1406,25 @@ function quizArmSVG(){
     return c;
   };
   const mk=function(ch,lx,ly,tx,ty){
-    return `<g class="pmark${st(1,ch)}" data-q="1" data-v="${ch}">`+
-      `<line class="ldr" x1="${lx}" y1="${ly}" x2="${tx}" y2="${ty}"/>`+
-      `<circle cx="${lx}" cy="${ly}" r="15"/>`+
-      `<text x="${lx}" y="${ly+6}" text-anchor="middle">${ch}</text></g>`;
+    return '<g class="pmark'+st(1,ch)+'" data-q="1" data-v="'+ch+'">'
+      +'<line class="ldr" x1="'+lx+'" y1="'+ly+'" x2="'+tx.toFixed(1)+'" y2="'+ty.toFixed(1)+'"/>'
+      +'<circle cx="'+lx+'" cy="'+ly+'" r="15"/>'
+      +'<text x="'+lx+'" y="'+(ly+6)+'" text-anchor="middle">'+ch+'</text></g>';
   };
   const pick=function(name,cx,cy,r,tx,ty){
-    return `<g class="cpick${st(2,name)}" data-q="2" data-v="${name}">`+
-      `<circle cx="${cx}" cy="${cy}" r="${r}"/>`+
-      `<line class="ldr" x1="${cx+r}" y1="${cy}" x2="${tx-6}" y2="${ty-5}"/>`+
-      `<text x="${tx}" y="${ty}">${name}</text></g>`;
+    return '<g class="cpick'+st(2,name)+'" data-q="2" data-v="'+name+'">'
+      +'<circle cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="'+r+'"/>'
+      +'<line class="ldr" x1="'+(cx+r).toFixed(1)+'" y1="'+cy.toFixed(1)+'" x2="'+(tx-6).toFixed(1)+'" y2="'+(ty-5).toFixed(1)+'"/>'
+      +'<text x="'+tx.toFixed(1)+'" y="'+ty.toFixed(1)+'">'+name+'</text></g>';
   };
-  const marks=mk('ア',60,92,b1.mx,b1.my)+mk('イ',78,252,b2.mx,b2.my)+
-    pick('手',H.x+d.x*10,H.y+d.y*10,25,H.x+56,H.y+24)+
-    pick('ひじ',E.x,E.y,22,E.x+34,E.y+6);
-
-  return `<svg viewBox="0 0 360 320" xmlns="http://www.w3.org/2000/svg">
-    ${skin}${mus}${bones}${marks}
-    <g><rect x="196" y="14" width="160" height="38" rx="19" fill="#fff" stroke="#1e9ec4" stroke-width="2.5"/>
-    <text x="276" y="39" text-anchor="middle" font-size="16" fill="#1f3446">うでを曲げたところ</text></g>
-  </svg>`;
+  const C={x:g.W.x+g.d.x*15, y:g.W.y+g.d.y*15};
+  const marks=mk('ア',LAB_A.x,LAB_A.y,g.s1.mx,g.s1.my)+mk('イ',LAB_B.x,LAB_B.y,g.s2.mx,g.s2.my)
+    +pick('手',C.x,C.y,27,C.x+36,C.y-8)
+    +pick('ひじ',E.x,E.y,24,E.x+30,E.y+9);
+  return '<svg viewBox="-50 0 410 320" xmlns="http://www.w3.org/2000/svg">'
+    +'<g transform="'+ARM_TF+'">'+g.skin+g.bones+g.mus+marks+'</g>'
+    +'<g><rect x="196" y="14" width="160" height="38" rx="19" fill="#fff" stroke="#1e9ec4" stroke-width="2.5"/>'
+    +'<text x="276" y="39" text-anchor="middle" font-size="16" fill="#1f3446">うでを曲げたところ</text></g></svg>';
 }
 function bindCMarks(){
   $$('#stageC [data-q]').forEach(function(g){
@@ -1256,8 +1432,7 @@ function bindCMarks(){
     g.addEventListener('click',function(){
       if(cStep!==q||cDone[q]) return;
       cAns[q]=v;
-      $('#cText').textContent='「'+v+'」をえらびました。かえたいときは、もう一方をタップしてね。答え合わせボタンをおそう。';
-      paintCQuiz();
+      judgeC();
     });
   });
 }
@@ -1285,7 +1460,7 @@ function renderCStep(){
     $$('#cqBody .chip').forEach(function(c){
       c.addEventListener('click',function(){
         if(cDone[3]) return;
-        cAns[3]=c.dataset.w; paintSlot();
+        cAns[3]=c.dataset.w; paintSlot(); judgeC();
       });
     });
     paintSlot();
@@ -1302,13 +1477,12 @@ function paintSlot(){
     c.classList.toggle('used',cAns[3]===c.dataset.w);
   });
 }
-$('#cqCheck').addEventListener('click',function(){
-  if(!cAns[cStep]){
-    $('#cText').textContent=(cStep===3)?'言葉をえらんでから、答え合わせをしよう。':'図の印をタップしてえらんでから、答え合わせをしよう。';
-    return;
-  }
+/* 答えをえらんだ時点で判定する（答え合わせボタンは廃止） */
+function judgeC(){
+  if(!cAns[cStep]||cDone[cStep]) return;
   cDone[cStep]=true;
   const ok=(cAns[cStep]===C_ANS[cStep]);
+  if(ok) praise('#pc .stage');
   if(cStep===1){
     $('#cTitle').textContent=ok?'せいかい！ 答えは ア':'おしい！ 答えは ア';
     $('#cText').textContent='うでを曲げるときは、内側（ア）のきん肉がちぢんでふくらみ、さわるとかたくなります。外側（イ）のきん肉はゆるみます。のばすときは反対になります。';
@@ -1325,7 +1499,7 @@ $('#cqCheck').addEventListener('click',function(){
     $('#cText').textContent='答えは「手には、関節がたくさんあるから。」ひじの関節は1つですが、手にはゆびや手首にたくさんの関節があります（オレンジの点）。だから細かな動きができます。';
   }
   paintCQuiz();
-});
+}
 $('#cqNext').addEventListener('click',function(){
   if(cStep<3){ cStep++; }
   else { cStep=1; cAns={1:null,2:null,3:null}; cDone={1:false,2:false,3:false}; }
@@ -1355,66 +1529,244 @@ $$('#modeC button').forEach(function(b){
 });
 
 /* ============ 4 動物とくらべる ============ */
+/* イヌの絵は教科書の図（イヌのほね／イヌのきん肉）をもとに描き直したもの。
+   描き方はヒトの全身図とそろえてある：
+     皮ふ … 1本の閉じた輪かく    ほね … hullPath（両はしで太さがちがう形）
+     きん肉 … ぼうすい形＋すじ（spindleV / mband）
+   viewBox は 0 0 300 290。体（頭・くび・どう・しっぽ）と足4本を別々に持ち、
+   足だけを回せるようにしてある。 */
+
+function curvePath(p){
+  const n=p.length; let d='M'+p[0][0].toFixed(1)+','+p[0][1].toFixed(1);
+  for(let i=0;i<n;i++){
+    const a=p[(i-1+n)%n], b=p[i], c=p[(i+1)%n], e=p[(i+2)%n];
+    d+='C'+(b[0]+(c[0]-a[0])/6).toFixed(1)+','+(b[1]+(c[1]-a[1])/6).toFixed(1)
+      +' '+(c[0]-(e[0]-b[0])/6).toFixed(1)+','+(c[1]-(e[1]-b[1])/6).toFixed(1)
+      +' '+c[0].toFixed(1)+','+c[1].toFixed(1)+' ';
+  }
+  return d+'Z';
+}
+function legOutline(pt,r){
+  const m=pt.length, u=[], n=[];
+  for(let i=0;i<m-1;i++){
+    const dx=pt[i+1].x-pt[i].x, dy=pt[i+1].y-pt[i].y, l=Math.hypot(dx,dy)||1;
+    u.push({x:dx/l,y:dy/l}); n.push({x:-dy/l,y:dx/l});
+  }
+  const norm=function(a){while(a>Math.PI)a-=2*Math.PI; while(a<-Math.PI)a+=2*Math.PI; return a;};
+  const side=function(sg){
+    const o=[[pt[0].x+sg*n[0].x*r[0], pt[0].y+sg*n[0].y*r[0]]];
+    for(let i=1;i<m-1;i++){
+      const da=norm(Math.atan2(u[i].y,u[i].x)-Math.atan2(u[i-1].y,u[i-1].x));
+      if(da*sg<0){
+        const a0=Math.atan2(sg*n[i-1].y,sg*n[i-1].x);
+        arcPts(pt[i].x,pt[i].y,r[i],a0,a0+da,5).forEach(function(q){o.push(q);});
+      }else{
+        let b={x:n[i-1].x+n[i].x, y:n[i-1].y+n[i].y}; const bl=Math.hypot(b.x,b.y)||1;
+        o.push([pt[i].x+sg*b.x/bl*r[i]*0.88, pt[i].y+sg*b.y/bl*r[i]*0.88]);
+      }
+    }
+    o.push([pt[m-1].x+sg*n[m-2].x*r[m-1], pt[m-1].y+sg*n[m-2].y*r[m-1]]);
+    return o;
+  };
+  const e=m-1, aE=Math.atan2(n[e-1].y,n[e-1].x), aS=Math.atan2(-n[0].y,-n[0].x);
+  return side(1).concat(arcPts(pt[e].x,pt[e].y,r[e],aE,aE-Math.PI,8),
+                        side(-1).reverse(),
+                        arcPts(pt[0].x,pt[0].y,r[0],aS,aS-Math.PI,8));
+}
+
+/* 体の輪かく。教科書の絵から実測した点を、なめらかにつないで1本の線にする。
+   直すときはこの配列だけをいじれば、皮ふ・きん肉の切りぬきがまとめて変わる
+   （足の位置は DOG_LEGS、ほねは dogBoneBody 側）。 */
+const DOG_OUT=[
+  [18.7,66.8],[20.8,75.8],[27.3,82.3],[36.4,83.3],[45.8,83.3],
+  [53.2,87.7],[57.1,96.0],[58.8,105.1],[58.7,114.5],[59.5,123.7],
+  [61.6,132.7],[64.0,141.8],[67.1,150.5],[71.5,158.8],[77.5,165.9],
+  [83.2,173.3],[86.6,182.1],
+  [92.0,192.0],[104.0,197.5],[118.0,197.5],[130.0,193.5],
+  [144.8,186.5],[154.1,185.4],[163.3,184.1],[172.2,181.1],
+  [180.7,178.1],[189.6,175.0],[198.8,173.5],
+  [214.0,180.0],[228.0,190.0],[242.0,198.0],[254.0,201.0],[263.0,197.0],
+  [268.2,187.7],[270.5,179.4],[270.4,170.1],[272.6,161.1],[275.4,152.1],
+  [274.7,142.9],[273.8,134.9],[271.0,126.1],[267.5,117.5],[261.3,110.6],
+  [264.9,102.7],[267.6,93.8],[269.3,84.8],[268.8,75.8],[264.9,67.3],
+  [260.9,58.9],[253.7,53.0],[245.0,50.3],[235.6,50.0],[226.3,50.4],
+  [217.3,52.8],[208.9,56.7],[204.4,64.8],[202.7,73.9],[202.5,83.2],
+  [209.6,86.2],[216.7,80.3],[225.3,76.6],[234.0,79.6],[241.0,85.6],
+  [245.5,93.5],
+  [239.2,97.5],[230.1,95.6],[220.8,94.4],[211.5,93.9],[202.1,94.3],
+  [192.8,94.9],[183.4,95.4],[174.1,96.1],[164.8,95.7],[155.6,94.0],
+  [146.3,92.6],[137.6,89.2],[129.4,85.1],[122.7,79.0],
+  [117.2,71.6],[112.5,63.5],[109.0,54.9],[105.6,46.2],[100.6,38.4],
+  [95.4,30.7],[89.4,23.5],[83.0,17.5],[78.0,13.2],[75.6,11.0],[74.8,10.4],
+  [73.9,12.6],[71.4,14.8],[68.6,17.0],[66.5,18.6],[63.6,17.4],[60.0,15.4],
+  [56.4,13.4],[54.6,11.9],[54.3,13.6],[55.2,19.0],[56.8,24.6],[58.4,30.2],
+  [52.1,36.8],[46.5,44.2],[40.9,51.7],[33.9,57.6],[25.0,60.4]
+];
+function dogOutline(){ return curvePath(DOG_OUT); }
+
+/* 絵のまわりのあき。ヒトの全身図（300x440）とならべたとき大きく見えすぎるので、
+   絵はそのままに viewBox を広げて、ひとまわり小さく見せている。
+   もっと小さくしたいときは DOG_PAD を大きくするだけでよい（絵の座標は直さない）。 */
+const DOG_PAD=33;
+const DOG_VB=(-DOG_PAD)+' '+(-DOG_PAD+1)+' '+(300+DOG_PAD*2)+' '+(290+DOG_PAD*2);
+const DOG_CAPY=290+DOG_PAD-10;
+
+/* 足4本。near:true が手前、false が奥。
+   A=つけ根（かた・こし） B=まん中の関節（ひじ・ひざ） C=足首 D=足の先 T=つま先
+   r* は皮ふの太さ、b* はほねの太さ、ru/rl はつまんで回せる角度のはんい。 */
+const DOG_LEGS=[
+  {id:'ff',near:false,A:[86,150],B:[103,190],C:[107,240],D:[105,257],T:[92,263],
+   rA:12.5,rB:10,rC:6.6,rD:6.2,rT:5.8, bA:6.8,bB:5.4,bC:4, ru:[-35,35],rl:[-45,10]},
+  {id:'hf',near:false,A:[240,140],B:[218,192],C:[240,228],D:[238,253],T:[225,259],
+   rA:17,rB:11.5,rC:6.6,rD:6.2,rT:5.8, bA:7.2,bB:5.6,bC:4, ru:[-30,30],rl:[-10,45]},
+  {id:'fn',near:true, A:[95,146],B:[124,188],C:[130,240],D:[128,257],T:[114,264],
+   rA:15,rB:12,rC:7.6,rD:7,rT:6.4, bA:8,bB:6.2,bC:4.6, ru:[-35,35],rl:[-45,10]},
+  {id:'hn',near:true, A:[255,139],B:[238,192],C:[266,228],D:[264,254],T:[250,260],
+   rA:20,rB:13,rC:7.6,rD:7,rT:6.4, bA:8.4,bB:6.4,bC:4.6, ru:[-30,30],rl:[-10,45]}
+];
+function pt4(o){ return [P(o.A[0],o.A[1]),P(o.B[0],o.B[1]),P(o.C[0],o.C[1]),P(o.D[0],o.D[1]),P(o.T[0],o.T[1])]; }
+function legD(pts,rs){ return 'M'+ptsJoin(legOutline(pts,rs))+' Z'; }
+
+function dogLegBone(o,part){
+  const p=pt4(o);
+  if(part==='u') return '<circle class="bn" cx="'+p[0].x+'" cy="'+p[0].y+'" r="'+(o.bA+0.4)+'"/>'
+    + '<path class="bn" d="'+hullPath(p[0],p[1],o.bA,o.bB)+'"/>';
+  let s='<circle class="bn" cx="'+p[1].x+'" cy="'+p[1].y+'" r="'+(o.bB+0.6)+'"/>'
+    + '<path class="bn" d="'+hullPath(p[1],p[2],o.bB,o.bC)+'"/>'
+    + '<path class="bn" d="'+hullPath(p[2],p[3],o.bC,o.bC*0.8)+'"/>';
+  const vx=p[4].x-p[3].x, vy=p[4].y-p[3].y, vl=Math.hypot(vx,vy)||1;   /* ゆびのほね */
+  const ux=vx/vl, uy=vy/vl, nx=-uy, ny=ux;
+  for(let i=-1;i<=1;i++){
+    const o=P(p[3].x+ux*3+nx*i*2.6, p[3].y+uy*3+ny*i*2.6);
+    const q=P(p[3].x+ux*(vl+3)+nx*i*3.4, p[3].y+uy*(vl+3)+ny*i*3.4);
+    s+='<path class="bn" d="'+hullPath(o,q,2.2,1.7)+'"/>';
+  }
+  return s;
+}
+function dogLegMus(o,part,t){
+  const p=pt4(o);
+  const a=(part==='u')?p[0]:p[1], b=(part==='u')?p[1]:p[2];
+  const w=(part==='u')?o.rA*1.25:o.rB*1.25;
+  const vx=b.x-a.x, vy=b.y-a.y, L=Math.hypot(vx,vy)||1;
+  const s0=(part==='u')?0.05:0.08, s1=(part==='u')?0.95:0.78;
+  return spindleV(P(a.x+vx*s0,a.y+vy*s0),P(a.x+vx*s1,a.y+vy*s1),
+                  2+3*t,{x:-vy/L,y:vx/L},w+5*t);
+}
+
+function dogBoneBody(){
+  /* 頭がい骨 */
+  let s='<ellipse class="bn" cx="72" cy="47" rx="17.5" ry="13"/>'
+   + '<path class="bn" d="'+hullPath(P(68,54),P(30,64),13,4.8)+'"/>'    /* 上あご */
+   + '<path class="bn" d="'+hullPath(P(80,54),P(77,66),5.4,5.6)+'"/>'   /* あごの関節 */
+   + '<path class="bn" d="'+hullPath(P(77,66),P(34,70),5.6,3.2)+'"/>'   /* 下あご */
+   + '<ellipse cx="61" cy="50" rx="5" ry="4.2" fill="#e3d8bd"/>'        /* 目のあな */
+   + '<path d="M63,44 C57,40 48,42 42,48" fill="none" stroke="var(--boneL)" stroke-width="0.9" opacity=".6"/>';
+  for(let i=0;i<9;i++){                                                /* 歯 */
+    const u=i/8, x=37+u*24, y=65.6+u*2.4;
+    s+='<path d="M'+(x-1.7).toFixed(1)+','+y.toFixed(1)+' L'+x.toFixed(1)+','+(y+4).toFixed(1)
+      +' L'+(x+1.7).toFixed(1)+','+y.toFixed(1)+' Z" fill="#fffdf6" stroke="var(--boneL)" stroke-width="0.8"/>';
+  }
+  /* けいつい（1つずつ玉をつないで、つなぎ目が見えるように） */
+  const nk=[[83,55],[89,62],[95,69],[101,75],[108,81],[114,86],[120,90]];
+  nk.forEach(function(a,i){
+    s+='<circle class="bn" cx="'+a[0]+'" cy="'+a[1]+'" r="'+(5.2-i*0.12).toFixed(1)+'"/>';
+  });
+  /* せぼね＋とっき */
+  s+='<path class="bn" d="'+hullPath(P(122,90),P(180,97),5.2,5)+'"/>'
+   + '<path class="bn" d="'+hullPath(P(180,97),P(243,103),5,5.6)+'"/>';
+  for(let i=0;i<15;i++){
+    const u=i/14, x=128+u*106, y=90.6+u*11.4;
+    const h=(u<0.35)?(12-u*10):(8.5-u*4);
+    s+='<path class="bn" d="'+hullPath(P(x,y-2),P(x-1.6,y-2-h),2.5,1.7)+'"/>';
+  }
+  /* ろっ骨＋むねのほね */
+  const V=function(u){ return [100+u*100, 176+30*u-56*u*u]; };
+  for(let i=0;i<12;i++){
+    const u=i/11, sx=128+u*84, sy=91+u*10.5, v=V(u);
+    s+='<path class="rib" d="M'+sx.toFixed(1)+','+sy.toFixed(1)
+      +' C'+(sx-16+u*10).toFixed(1)+','+(sy+(v[1]-sy)*0.45).toFixed(1)
+      +' '+(v[0]-10-u*4).toFixed(1)+','+(v[1]-(v[1]-sy)*0.30).toFixed(1)
+      +' '+v[0].toFixed(1)+','+v[1].toFixed(1)+'"/>';
+  }
+  s+='<path class="bn" d="'+hullPath(P(101,177),P(143,183),4.2,4.6)+'"/>';  /* むねのほね */
+  /* けんこう骨・こつばん */
+  s+='<path class="bn" d="'+hullPath(P(117,96),P(93,137),17,7.5)+'"/>'
+   + '<path d="M112,102 C106,116 100,128 96,134" fill="none" stroke="var(--boneL)" stroke-width="1" opacity=".55"/>'
+   + '<path class="bn" d="'+hullPath(P(228,104),P(258,134),11.5,9)+'"/>';
+  /* しっぽのほね */
+  const tl=[[240,107],[248,100],[252.5,91],[254,83],[253,75],[249.5,70.5],[243,68.8],
+            [235,68.4],[228,69],[220.5,71],[214,74],[210.5,76.5]];
+  for(let i=0;i<tl.length-1;i++){
+    const r=4.6-i*0.28;
+    s+='<path class="bn" d="'+hullPath(P(tl[i][0],tl[i][1]),P(tl[i+1][0],tl[i+1][1]),r,r-0.28)+'"/>';
+  }
+  return s;
+}
+
+function dogMusBody(){
+  let tail='';                                    /* しっぽ：うずまきにそったすじ */
+  for(let i=0;i<4;i++){
+    const r=18+i*6.6;
+    tail+=fib('M'+ptsJoin(arcPts(230,90,r,-165*Math.PI/180,-28*Math.PI/180,14)));
+  }
+  return mband([28,70],[58,71],1.5,[0,1],9,.85)                   /* 口もと */
+   + mband([30,59],[62,54],1.5,[0,-1],9,.85)                      /* 鼻すじ */
+   + mband([54,64],[80,73],2,[0,1],16,.9)                         /* あご（かむきん肉） */
+   + mband([62,42],[86,52],2,[0,-1],14,.85)                       /* こめかみ */
+   + mband([88,38],[128,86],3,[1,-1],18)                          /* くび（上） */
+   + mband([84,54],[124,96],2,[1,-1],15,.95)                      /* くび（中） */
+   + mband([64,82],[114,122],3,[-1,1],17,.9)                      /* くび（下） */
+   + mband([128,102],[240,110],2,[0,-1],20,.9)                    /* せなか */
+   + mband([130,124],[232,134],2,[0,1],24,.85)                    /* わき（上） */
+   + mband([128,150],[220,160],2,[0,1],26,.85)                    /* わき（下） */
+   + mband([130,174],[208,176],2,[0,1],17,.8)                     /* はら */
+   + mband([120,94],[97,146],3,[-1,-1],25)                        /* かた */
+   + mband([116,112],[128,186],3,[1,0],21,.95)                    /* 上うで */
+   + mband([98,158],[136,192],2,[-1,1],17,.9)                     /* むね */
+   + mband([230,102],[262,140],3,[1,-1],24)                       /* おしり */
+   + mband([250,118],[238,192],3,[-1,0],33)                       /* もも */
+   + mband([260,134],[268,196],3,[1,0],20,.9)                     /* ももの後ろ */
+   + mband([243,101],[254,82],2,[1,0],13,.9)                      /* しっぽの根もと */
+   + tail
+   + fib('M140,108 C136,138 136,164 142,180') + fib('M152,109 C148,140 148,166 154,182')
+   + fib('M164,110 C161,141 161,167 166,183') + fib('M176,110 C173,142 173,168 178,182')
+   + fib('M188,111 C186,141 186,166 190,180') + fib('M200,112 C198,141 198,164 202,177')
+   + fib('M212,113 C211,140 211,161 214,173')
+   + fib('M96,62 C104,82 112,98 120,110') + fib('M90,72 C98,92 106,108 114,120')
+   + fib('M84,84 C92,104 100,118 108,128')
+   + fib('M46,62 C52,66 58,68 64,68') + fib('M58,58 C64,62 70,66 74,70');
+}
+
+/* ---- しずかな絵（しらべる・テストで使う。3まいのレイヤー） ---- */
+var dogClipN=0;
 function dogSVG(cap){
   cap = cap || 'イヌ';
-  let ribs='';
-  for(let i=0;i<7;i++){
-    const x=138+i*16;
-    ribs+=`<path class="rib" d="M${x},100 C ${x-4},118 ${x-6},134 ${x+2},146"/>`;
-  }
-  const skin=`<g class="layer dSkin">
-    <line class="skl" x1="128" y1="140" x2="122" y2="184" stroke-width="17"/>
-    <line class="skl" x1="146" y1="140" x2="142" y2="184" stroke-width="15"/>
-    <line class="skl" x1="238" y1="150" x2="252" y2="176" stroke-width="15"/>
-    <line class="skl" x1="252" y1="176" x2="246" y2="186" stroke-width="13"/>
-    <line class="skl" x1="222" y1="150" x2="234" y2="176" stroke-width="14"/>
-    <ellipse class="sk" cx="120" cy="190" rx="12" ry="7"/>
-    <ellipse class="sk" cx="141" cy="190" rx="11" ry="7"/>
-    <ellipse class="sk" cx="244" cy="190" rx="12" ry="7"/>
-    <ellipse class="sk" cx="232" cy="190" rx="11" ry="7"/>
-    <ellipse class="sk" cx="232" cy="126" rx="32" ry="34"/>
-    <ellipse class="sk" cx="180" cy="116" rx="70" ry="40"/>
-    <line class="skl" x1="118" y1="104" x2="86" y2="84" stroke-width="38"/>
-    <path d="M248,88 q26,-20 30,4 q4,20 -14,22" fill="none" stroke="var(--skin)" stroke-width="15" stroke-linecap="round"/>
-    <polygon class="sk" points="58,60 64,32 80,56"/>
-    <polygon class="sk" points="84,54 98,34 100,58"/>
-    <ellipse class="sk" cx="74" cy="76" rx="26" ry="22"/>
-    <ellipse class="sk" cx="46" cy="84" rx="18" ry="12"/>
-    <circle cx="32" cy="82" r="4" fill="#7a5c46"/>
-    <circle cx="70" cy="70" r="3" fill="#7a5c46"/>
-   </g>`;
-  const bones=`<g class="layer dBone">
-    <ellipse class="bn" cx="72" cy="76" rx="22" ry="17"/>
-    <path class="bn" d="M52,80 q-18,2 -18,8 q0,7 18,7 z"/>
-    ${bone(92,80,120,96,9)}
-    ${bone(120,96,250,98,11)}
-    ${ribs}
-    <path class="bn" d="M244,84 C262,80 274,90 272,102 C270,112 258,114 250,108 Z"/>
-    ${bone(266,96,282,84,6)}${bone(282,84,290,96,6)}
-    ${bone(130,104,126,142,9)}${bone(126,142,122,182,7)}
-    ${bone(148,104,144,142,8)}${bone(144,142,140,182,6)}
-    ${bone(238,106,226,142,10)}${bone(226,142,250,172,8)}${bone(250,172,244,184,7)}
-    ${bone(224,106,214,142,9)}${bone(214,142,234,172,7)}
-    <circle class="bn" cx="126" cy="142" r="7"/><circle class="bn" cx="226" cy="142" r="8"/>
-    <circle class="bn" cx="250" cy="172" r="6"/><circle class="bn" cx="122" cy="182" r="6"/>
-    <ellipse class="bn" cx="120" cy="188" rx="11" ry="6"/><ellipse class="bn" cx="244" cy="188" rx="11" ry="6"/>
-   </g>`;
-  const mus=`<g class="layer dMus">
-    <line class="ml" x1="130" y1="106" x2="126" y2="142" stroke-width="20"/>
-    <line class="ml" x1="126" y1="142" x2="122" y2="180" stroke-width="12"/>
-    <line class="ml" x1="238" y1="108" x2="226" y2="142" stroke-width="16"/>
-    <line class="ml" x1="226" y1="142" x2="249" y2="172" stroke-width="12"/>
-    <ellipse class="mfill" cx="234" cy="122" rx="30" ry="31"/>
-    <ellipse class="mfill" cx="178" cy="116" rx="66" ry="37"/>
-    <line class="ml" x1="116" y1="104" x2="88" y2="86" stroke-width="34"/>
-    <ellipse class="mfill" cx="74" cy="78" rx="23" ry="18"/>
-    <path class="mline" d="M140 92 q6 40 -2 58 M162 88 q4 44 -2 62 M186 88 q2 44 -2 62 M210 92 q2 40 -2 56"/>
-    <path class="mline" d="M226 100 q16 20 6 44 M120 100 q10 18 4 40"/>
-    <path class="mline" d="M104 96 q-8 12 -14 16"/>
-   </g>`;
-  return `<svg viewBox="0 0 310 215" xmlns="http://www.w3.org/2000/svg">${skin}${bones}${mus}
-    <text class="cap" x="155" y="209" text-anchor="middle" font-size="16">${cap}</text></svg>`;
+  const cid='dogClip'+(++dogClipN);
+  const legs=DOG_LEGS;
+  const legPath=function(o){ return legD(pt4(o),[o.rA,o.rB,o.rC,o.rD,o.rT]); };
+  const far=legs.filter(function(o){return !o.near;}), near=legs.filter(function(o){return o.near;});
+  const skin='<g class="layer dSkin">'
+    + legs.map(function(o){return '<path class="sk" d="'+legPath(o)+'"/>';}).join('')
+    + '<path class="sk" d="'+dogOutline()+'"/></g>';
+  const lb=function(o){ return dogLegBone(o,'u')+dogLegBone(o,'l'); };
+  const bones='<g class="layer dBone"><g opacity=".5">'+far.map(lb).join('')+'</g>'
+    + dogBoneBody() + near.map(lb).join('')+'</g>';
+  const lm=function(o){
+    const a=dogLegMus(o,'u',0), b=dogLegMus(o,'l',0);
+    return '<path d="'+legPath(o)+'" fill="'+MF+'" stroke="'+ML+'" stroke-width="1.5"/>'
+      + '<path d="'+a.d+'" fill="#eaa98c" stroke="'+ML+'" stroke-width="1.2"/>'
+      + a.fib.map(function(x){return '<path d="'+x+'" fill="none" stroke="'+ML+'" stroke-width="0.8" opacity=".4"/>';}).join('')
+      + '<path d="'+b.d+'" fill="#eaa98c" stroke="'+ML+'" stroke-width="1.2" opacity=".9"/>';
+  };
+  const musc='<g class="layer dMus">'
+    + '<defs><clipPath id="'+cid+'"><path d="'+dogOutline()+'"/></clipPath></defs>'
+    + legs.map(lm).join('')
+    + '<path d="'+dogOutline()+'" fill="'+MF+'" stroke="'+ML+'" stroke-width="1.6" stroke-linejoin="round"/>'
+    + '<g clip-path="url(#'+cid+')">'+dogMusBody()+'</g></g>';
+  return '<svg viewBox="'+DOG_VB+'" xmlns="http://www.w3.org/2000/svg">'+skin+bones+musc
+    + '<text class="cap" x="150" y="'+DOG_CAPY+'" text-anchor="middle">'+cap+'</text></svg>';
 }
+
 const D_INFO={
   bone:['ほね','イヌにも、ヒトと同じようにほねと関節があります。せぼねやろっこつ、足のほねのつくりがよくにていますね。形や数、大きさは動物によってちがいます。'],
   mus:['きん肉','イヌにもきん肉があります。ほねについたきん肉がちぢんだりゆるんだりして、関節のところで体を動かしています。'],
@@ -1430,55 +1782,29 @@ const STMTS=[
  {t:'イヌなどの動物は、きん肉やほねなどのはたらきによって、体を動かしている。',ok:true,
   e:'ヒトと同じように、ほね・関節・きん肉のはたらきで、体をささえたり動かしたりしています。'}
 ];
+/* ---- つまんで動かせる絵（体を先に描き、足をその上にのせる） ---- */
 function dogPuppetSVG(){
-  const gh=function(x1,y1,x2,y2,w){return `<line class="skl gh" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke-width="${w}"/>`;};
-  let ribs='';
-  for(let i=0;i<7;i++){ const x=138+i*16;
-    ribs+=`<path class="rib" d="M${x},100 C ${x-4},118 ${x-6},134 ${x+2},146"/>`; }
-  const body=`<g>
-    <ellipse class="sk gh" cx="232" cy="126" rx="32" ry="34"/>
-    <ellipse class="sk gh" cx="180" cy="116" rx="70" ry="40"/>
-    ${gh(118,104,86,84,38)}
-    <path d="M248,88 q26,-20 30,4 q4,20 -14,22" fill="none" stroke="var(--skin)" stroke-width="15" stroke-linecap="round" opacity=".42"/>
-    <polygon class="sk gh" points="58,60 64,32 80,56"/>
-    <polygon class="sk gh" points="84,54 98,34 100,58"/>
-    <ellipse class="sk gh" cx="74" cy="76" rx="26" ry="22"/>
-    <ellipse class="sk gh" cx="46" cy="84" rx="18" ry="12"/>
-    <ellipse class="bn" cx="72" cy="76" rx="22" ry="17"/>
-    <path class="bn" d="M52,80 q-18,2 -18,8 q0,7 18,7 z"/>
-    ${bone(92,80,120,96,9)}
-    ${bone(120,96,250,98,11)}
-    ${ribs}
-    <path class="bn" d="M244,84 C262,80 274,90 272,102 C270,112 258,114 250,108 Z"/>
-    ${bone(266,96,282,84,6)}${bone(282,84,290,96,6)}
-    <ellipse class="mfill" cx="180" cy="116" rx="62" ry="33" opacity=".55"/>
-  </g>`;
   function leg(o){
-    const mx=(o.A[0]+o.B[0])/2, my=(o.A[1]+o.B[1])/2;
-    return `<g class="limb" data-id="${o.id}u" data-cx="${o.A[0]}" data-cy="${o.A[1]}" data-min="${o.ru[0]}" data-max="${o.ru[1]}">
-      ${gh(o.A[0],o.A[1],o.B[0],o.B[1],o.w1)}
-      <ellipse class="dm" data-for="${o.id}l" cx="${mx}" cy="${my}" rx="${o.mr[0]}" ry="${o.mr[1]}" fill="#f8cfc0"/>
-      ${bone(o.A[0],o.A[1],o.B[0],o.B[1],9)}
-      <g class="limb" data-id="${o.id}l" data-cx="${o.B[0]}" data-cy="${o.B[1]}" data-min="${o.rl[0]}" data-max="${o.rl[1]}">
-        ${gh(o.B[0],o.B[1],o.C[0],o.C[1],o.w2)}
-        ${bone(o.B[0],o.B[1],o.C[0],o.C[1],7)}
-        ${o.extra||''}
-        <ellipse class="bn" cx="${o.F[0]}" cy="${o.F[1]}" rx="11" ry="6"/>
-        <circle class="jd" cx="${o.B[0]}" cy="${o.B[1]}" r="6"/>
-      </g>
-      <circle class="jd" cx="${o.A[0]}" cy="${o.A[1]}" r="6"/>
-    </g>`;
+    const p=pt4(o);
+    const up='<path class="sk gh" d="'+legD([p[0],p[1]],[o.rA,o.rB])+'"/>';
+    const lo='<path class="sk gh" d="'+legD([p[1],p[2],p[3],p[4]],[o.rB,o.rC,o.rD,o.rT])+'"/>';
+    const inner='<g class="limb" data-id="'+o.id+'l" data-cx="'+o.B[0]+'" data-cy="'+o.B[1]
+      +'" data-min="'+o.rl[0]+'" data-max="'+o.rl[1]+'">'+lo
+      +'<path class="dm" data-for="'+o.id+'l" d="'+dogLegMus(o,'l',0).d+'" fill="#f8cfc0"/>'
+      +dogLegBone(o,'l')+'<circle class="jd" cx="'+o.B[0]+'" cy="'+o.B[1]+'" r="6"/></g>';
+    return '<g class="limb" data-id="'+o.id+'u" data-cx="'+o.A[0]+'" data-cy="'+o.A[1]
+      +'" data-min="'+o.ru[0]+'" data-max="'+o.ru[1]+'">'+up
+      +'<path class="dm" data-for="'+o.id+'u" d="'+dogLegMus(o,'u',0).d+'" fill="#f8cfc0"/>'
+      +dogLegBone(o,'u')+inner
+      +'<circle class="jd" cx="'+o.A[0]+'" cy="'+o.A[1]+'" r="6"/></g>';
   }
-  const ff=leg({id:'ff',A:[148,104],B:[144,142],C:[140,182],F:[141,188],w1:15,w2:12,mr:[9,18],ru:[-35,35],rl:[-45,10]});
-  const hf=leg({id:'hf',A:[224,106],B:[214,142],C:[234,172],F:[232,186],w1:15,w2:12,mr:[15,22],ru:[-30,30],rl:[-10,45],
-    extra:gh(234,172,232,184,11)+bone(234,172,232,184,7)});
-  const fn=leg({id:'fn',A:[130,104],B:[126,142],C:[122,182],F:[120,188],w1:17,w2:13,mr:[10,19],ru:[-35,35],rl:[-45,10]});
-  const hn=leg({id:'hn',A:[238,106],B:[226,142],C:[250,172],F:[246,186],w1:16,w2:13,mr:[17,24],ru:[-30,30],rl:[-10,45],
-    extra:gh(250,172,246,184,12)+bone(250,172,246,184,7)});
-  return `<svg viewBox="0 0 310 215" xmlns="http://www.w3.org/2000/svg">${ff}${hf}${body}${fn}${hn}
-    <text class="cap" x="155" y="209" text-anchor="middle" font-size="16">イヌ（手足をつまんで動かせます）</text></svg>`;
+  return '<svg viewBox="'+DOG_VB+'" xmlns="http://www.w3.org/2000/svg">'
+    + '<path class="sk gh" d="'+dogOutline()+'"/>' + dogBoneBody()
+    + DOG_LEGS.map(leg).join('')
+    + '<text class="cap" x="150" y="'+DOG_CAPY+'" text-anchor="middle">イヌ（手足をつまんで動かせます）</text></svg>';
 }
-var dogWalk=false, dogRaf=null, dogT=0;
+var dogWalk=false, dogRaf=null, dogT=0, dogLast=0;
+const DOG_SPD=3.6;                    /* 歩く速さ（1秒あたりのラジアン） */
 function setAng(id,deg){
   const g=$('#stageD2 svg [data-id="'+id+'"]'); if(!g) return;
   const lo=+g.dataset.min, hi=+g.dataset.max;
@@ -1507,7 +1833,9 @@ function paintDogMuscles(){
 }
 function dogLoop(){
   if(dMode!=='look'||dLayer!=='move'){dogRaf=null;return;}
-  if(dogWalk){ dogT+=0.06; walkPose(dogT); }
+  const now=performance.now();
+  if(dogWalk){ dogT+=DOG_SPD*Math.min(0.05,(now-dogLast)/1000); walkPose(dogT); }
+  dogLast=now;
   paintDogMuscles();
   dogRaf=requestAnimationFrame(dogLoop);
 }
@@ -1586,6 +1914,7 @@ $('#dCheck').addEventListener('click',function(){
     else if(on){ el.classList.add('ng'); el.querySelector('.box').textContent='×'; }
     else if(q.ok){ el.classList.add('miss'); el.querySelector('.box').textContent='○'; }
   });
+  if(right===2) praise('#pd .stage');
   $('#dTitle').textContent=(right===2?'ぜんせいかい！':'せいかいは '+right+'／2');
   $('#dText').textContent='正しいのは「イヌの体には、たくさんのほねや関節がある」と「きん肉やほねなどのはたらきによって、体を動かしている」。文をタップすると、それぞれのわけが読めます。';
 });
@@ -1611,118 +1940,348 @@ $$('#modeD button').forEach(function(b){
 renderD();
 
 /* ============ 5 体でためそう ============ */
-function band2(o,p,bulge,dir){
-  const mx=(o.x+p.x)/2+dir[0]*bulge, my=(o.y+p.y)/2+dir[1]*bulge;
-  return {d:`M${o.x},${o.y} Q${mx},${my} ${p.x},${p.y}`, mx:mx, my:my};
+/* タブ3「うでのしくみ」と同じ描き方を、体のいろいろな場所にあてはめたもの。
+   ・皮ふ … 1本の輪かく。ちぢんだ側がふくらむ
+   ・ほね … 両はしで太さがちがう形（hullPath）
+   ・きん肉 … ぼうすい形＋すじ（spindleV / paintMus）
+   1か所を「動かないほね A—P」＋「動くほね P—B」＋「きん肉 あ・い」で表します。 */
+
+const MUS_W=19, MUS_DW=14, MUS_B=3, MUS_DB=4;   /* きん肉の太さ・ふくらみのめやす */
+
+/* 足（かかと〜つま先）の輪かくとほね。u=すねの向き、n=うしろがわ */
+function footOutline(B,u,n,rB){
+  const Q=function(a,b){return [B.x+u.x*a+n.x*b, B.y+u.y*a+n.y*b];};
+  return [Q(0,rB), Q(19,27), Q(33,22), Q(36,-46), Q(25,-60), Q(3,-42), Q(0,-rB)];
 }
-const FPARTS=[
- {id:'hiji',name:'ひじ',loc:[35,236],
-  fixedSkin:`<circle class="sk" cx="72" cy="150" r="30"/><line class="skl" x1="72" y1="150" x2="200" y2="150" stroke-width="46"/>`,
-  fixedBone:bone(72,150,200,150,16)+`<circle class="bn" cx="72" cy="150" r="14"/>`,
-  moveSkin:`<line class="skl" x1="200" y1="150" x2="308" y2="150" stroke-width="38"/><circle class="sk" cx="320" cy="150" r="17"/>`,
-  moveBone:bone(200,146,306,146,11)+bone(200,154,306,154,11)+`<circle class="bn" cx="320" cy="150" r="13"/>`,
-  P:[200,150],bend:-110,
-  m1:{o:[88,132],p:[248,136],dir:[0,-1],lab:'あ'},
-  m2:{o:[88,170],p:[188,172],dir:[0,1],lab:'い'},
-  txt:'ひじの関節をまたいで、2つのきん肉がほねについています。あ がちぢむと曲がり、い がちぢむとのびます。',
-  mission:'ひじを曲げて、うでの上がわのきん肉をさわってみよう。かたくふくらむのがわかるかな。のばすと、こんどは下がわがかたくなるよ。'},
- {id:'hiza',name:'ひざ',loc:[38,274],
-  fixedSkin:`<circle class="sk" cx="180" cy="62" r="26"/><line class="skl" x1="180" y1="62" x2="180" y2="150" stroke-width="50"/>`,
-  fixedBone:bone(180,64,180,150,18)+`<circle class="bn" cx="180" cy="62" r="13"/>`,
-  moveSkin:`<line class="skl" x1="180" y1="150" x2="180" y2="244" stroke-width="38"/><ellipse class="sk" cx="198" cy="256" rx="24" ry="11"/>`,
-  moveBone:bone(176,150,176,244,12)+bone(186,152,186,244,7)+`<ellipse class="bn" cx="198" cy="256" rx="22" ry="9"/>`,
-  P:[180,150],bend:85,
-  m1:{o:[150,80],p:[164,198],dir:[-1,0],lab:'あ'},
-  m2:{o:[210,80],p:[196,198],dir:[1,0],lab:'い'},
-  txt:'ひざもうでと同じしくみです。ももの後ろ（あ）がちぢむと曲がり、ももの前（い）がちぢむとのびます。',
-  mission:'いすにすわって、ひざをのばしたり曲げたりしよう。ももの前と後ろ、どちらがかたくなるかな。'},
- {id:'ago',name:'あご',loc:[44,214],
-  fixedSkin:`<ellipse class="sk gh" cx="168" cy="110" rx="70" ry="62"/>`+
-    `<path d="M104,98 C104,34 236,30 238,106 C228,60 200,46 168,46 C132,46 112,62 104,98 Z" fill="#4b382e" opacity=".45"/>`+
-    `<ellipse class="sk gh" cx="228" cy="126" rx="13" ry="18"/>`+
-    `<circle cx="126" cy="104" r="5" fill="#4b382e"/>`,
-  fixedBone:`<ellipse class="bn" cx="170" cy="92" rx="58" ry="46"/>`+
-    `<path class="bn" d="M116,118 q-8,20 2,30 l86,6 q14,-16 8,-34 z"/>`+
-    `<line class="ldr" x1="240" y1="116" x2="258" y2="106"/><text class="cap" x="262" y="110" font-size="15">関節</text>`,
-  moveSkin:``,
-  moveBone:`<path d="M214,118 L212,150 L128,166" fill="none" stroke="var(--boneL)" stroke-width="19" stroke-linejoin="round" stroke-linecap="round"/>`+
-    `<path d="M214,118 L212,150 L128,166" fill="none" stroke="var(--bone)" stroke-width="13" stroke-linejoin="round" stroke-linecap="round"/>`+
-    `<text class="cap" x="120" y="192" text-anchor="middle" font-size="15">下あご</text>`,
-  P:[214,118],bend:-22,musTop:true,
-  m2:{o:[178,74],p:[208,148],dir:[1,0],lab:'あ',labPos:[300,58]},
-  txt:'あごの関節は耳のすぐ前にあります。こめかみのきん肉（あ）がちぢむと、下あごが引き上げられて口が閉じます。ゆるめると、下あごが下がって口が開きます。',
-  mission:'口を大きく開けたり閉じたりしよう。耳の前と、こめかみに手をあてると、動いているのがわかるよ。'},
- {id:'yubi',name:'ゆび',loc:[26,246],
-  fixedSkin:`<rect class="sk" x="34" y="118" width="96" height="74" rx="26"/>`,
-  fixedBone:bone(52,152,126,152,11)+bone(52,168,126,168,9),
-  chain:[
-   {P:[128,152],bend:52,skin:`<line class="skl" x1="128" y1="152" x2="196" y2="152" stroke-width="32"/>`,bn:bone(128,152,196,152,12)},
-   {P:[198,152],bend:52,skin:`<line class="skl" x1="198" y1="152" x2="250" y2="152" stroke-width="27"/>`,bn:bone(198,152,250,152,10)},
-   {P:[252,152],bend:44,skin:`<line class="skl" x1="252" y1="152" x2="290" y2="152" stroke-width="23"/><circle class="sk" cx="294" cy="152" r="12"/>`,bn:bone(252,152,288,152,8)}
-  ],
-  txt:'1本のゆびには関節が3つもあります。関節の数が多いほど、細かい動きができます。ゆびを動かすきん肉は、うでの中にあってすじで引っぱっています。',
-  mission:'ゆびを1本ずつゆっくり曲げてみよう。1本のゆびが何か所で曲がるか、数えてみよう。'},
- {id:'kubi',name:'くび',loc:[44,219],
-  fixedSkin:`<rect class="sk" x="96" y="198" width="168" height="88" rx="34"/>`,
-  fixedBone:`<rect class="bn" x="172" y="200" width="16" height="11" rx="4"/><rect class="bn" x="172" y="214" width="16" height="11" rx="4"/>`,
-  moveSkin:`<line class="skl" x1="180" y1="200" x2="180" y2="150" stroke-width="36"/><ellipse class="sk" cx="180" cy="106" rx="44" ry="50"/>`+
-    `<circle cx="164" cy="100" r="5" fill="#4b382e"/><circle cx="196" cy="100" r="5" fill="#4b382e"/>`,
-  moveBone:`<ellipse class="bn" cx="180" cy="102" rx="34" ry="40"/><rect class="bn" x="172" y="150" width="16" height="11" rx="4"/><rect class="bn" x="172" y="164" width="16" height="11" rx="4"/><rect class="bn" x="172" y="178" width="16" height="11" rx="4"/>`,
-  P:[180,196],bend:-26,
-  m1:{o:[132,232],p:[156,142],dir:[-1,0],lab:'あ',labPos:[92,152]},
-  m2:{o:[228,232],p:[204,142],dir:[1,0],lab:'い',labPos:[268,152]},
-  txt:'頭とせぼねのつなぎ目も関節です。首の左右のきん肉が交たいでちぢんで、頭をかたむけています。',
-  mission:'首を右や左にゆっくりかたむけよう。反対がわの首すじがピンとはるのがわかるかな。'}
-];
+function footBones(B,u,n){
+  const Q=function(a,b){return {x:B.x+u.x*a+n.x*b, y:B.y+u.y*a+n.y*b};};
+  return '<path class="bn" d="'+hullPath(Q(2,8),Q(22,11),10,8)+'"/>'
+       + '<path class="bn" d="'+hullPath(Q(22,8),Q(25,-35),8,6)+'"/>'
+       + '<path class="bn" d="'+hullPath(Q(25,-35),Q(20,-51),6,4.6)+'"/>';
+}
+
+/* 1か所ぶんの絵（k=0…のばした状態、k=1…曲げた状態） */
+function limbPieces(cfg,k){
+  const A={x:cfg.A[0],y:cfg.A[1]}, P={x:cfg.P[0],y:cfg.P[1]};
+  const ang=cfg.bend*k, sgn=cfg.bend>=0?1:-1, ar=ang*Math.PI/180;
+  const B=rotPt({x:cfg.B[0],y:cfg.B[1]},P,ang);
+  const uv=function(a,b){const x=b.x-a.x,y=b.y-a.y,l=Math.hypot(x,y)||1;return {x:x/l,y:y/l};};
+  const u1=uv(A,P), u2=uv(P,B);
+  const n1={x:-u1.y*sgn, y:u1.x*sgn};          /* 内がわ（曲がっていく側）の法線 */
+  const n2={x:-u2.y*sgn, y:u2.x*sgn};
+  const rA=cfg.rA, rP=cfg.rP, rB=cfg.rB, t1=k, t2=1-k;
+  const bulge=(cfg.bulge===undefined)?9:cfg.bulge;
+  const off=function(p,n,r){return [p.x+n.x*r, p.y+n.y*r];};
+  let bis={x:n1.x+n2.x,y:n1.y+n2.y}; const bl=Math.hypot(bis.x,bis.y)||1;
+  bis={x:bis.x/bl, y:bis.y/bl};
+
+  /* ---- 皮ふ（内がわ→先たん→外がわ の順に一周） ----
+     きん肉のある区間はまん中がふくらむ。ちぢんだ側ほど大きくふくらむ。 */
+  const side=function(a,b,r0,r1,n,bl2,t,sg){
+    const o=[];
+    for(let i=0;i<=4;i++){
+      const u=i/4, r=(r0+(r1-r0)*u+bl2*Math.sin(Math.PI*u)*t)*sg;
+      o.push([a.x+(b.x-a.x)*u+n.x*r, a.y+(b.y-a.y)*u+n.y*r]);
+    }
+    return o;
+  };
+  const b2=(cfg.bulge2===undefined)?2:cfg.bulge2;
+  let pts=side(A,P,rA,rP,n1,bulge,t1,1);
+  pts.push(off(P,bis,rP-rP*0.45*k));
+  pts=pts.concat(side(P,B,rP,rB,n2,b2,t1,1));
+  const aN=Math.atan2(n2.y,n2.x);
+  if(cfg.tip==='fist'){
+    pts=pts.concat(fistOutline(B,u2,n2,aN));
+  }else if(cfg.tip==='foot'){
+    pts=pts.concat(footOutline(B,u2,n2,rB));
+  }else{
+    pts=pts.concat(arcPts(B.x,B.y,rB,aN,aN-Math.PI*sgn,10));
+  }
+  pts=pts.concat(side(P,B,rP,rB,n2,b2,t2,-1).reverse());
+  const aO=Math.atan2(-n2.y,-n2.x);
+  pts=pts.concat(arcPts(P.x,P.y,rP,aO,aO-ar,10));
+  pts=pts.concat(side(A,P,rA,rP,n1,bulge,t2,-1).reverse());
+  const aA=Math.atan2(-n1.y,-n1.x);
+  pts=pts.concat(arcPts(A.x,A.y,rA,aA,aA-Math.PI*sgn,10));
+  let skin=(cfg.baseSkin||'')+'<path d="M'+ptsJoin(pts)+' Z" fill="#fff4e9" stroke="var(--skinL)" stroke-width="2" stroke-linejoin="round"/>';
+  if(cfg.extraSkin) skin+=cfg.extraSkin(B,u2,n2);
+
+  /* ---- ほね ---- */
+  let bones='<path class="bn" d="'+hullPath(A,P,cfg.bA,cfg.bP)+'"/>';
+  if(cfg.twin){
+    const sh=function(v){return {x:P.x+n2.x*v, y:P.y+n2.y*v};};
+    const eh=function(v){return {x:B.x+n2.x*v, y:B.y+n2.y*v};};
+    bones+='<path class="bn" d="'+hullPath(sh(-6),sh(6),7,7)+'"/>'
+        + '<path class="bn" d="'+hullPath(sh(-3.5),eh(-2),7.5,5.5)+'"/>'
+        + '<path class="bn" d="'+hullPath(sh(4.5),eh(4),5.5,7)+'"/>';
+  }else{
+    bones+='<path class="bn" d="'+hullPath(P,B,cfg.bP2||cfg.bP,cfg.bB)+'"/>';
+  }
+  if(cfg.tip==='fist') bones+=fistBones(B,u2,n2);
+  if(cfg.tip==='foot') bones+=footBones(B,u2,n2);
+  if(cfg.extraBone) bones+=cfg.extraBone(B,u2,n2);
+
+  /* ---- きん肉（ゆるむ側→ちぢむ側 の順に重ねる） ---- */
+  let mus='', lab='';
+  const put=function(m,t,s){
+    if(!m) return;
+    const o={x:A.x+u1.x*m.o[0]+n1.x*m.o[1], y:A.y+u1.y*m.o[0]+n1.y*m.o[1]};
+    const q={x:P.x+u2.x*m.p[0]+n2.x*m.p[1], y:P.y+u2.y*m.p[0]+n2.y*m.p[1]};
+    const sp=spindleV(o,q,(m.b||MUS_B)+MUS_DB*t, {x:n1.x*s,y:n1.y*s}, (m.w||MUS_W)+(m.dw===undefined?MUS_DW:m.dw)*t);
+    mus+=paintMus(sp,t);
+    lab+=labelMark(m.lab,m.labPos[0],m.labPos[1],sp.mx,sp.my);
+  };
+  put(cfg.m2,t2,-1); put(cfg.m1,t1,1);
+
+  /* ---- 関節 ---- */
+  let joint='<circle cx="'+P.x+'" cy="'+P.y+'" r="'+(cfg.jr||14)+'" fill="none" stroke="#f5821f" stroke-width="2.6" stroke-dasharray="5 4"/>';
+  if(cfg.jlab) joint+='<text class="cap" x="'+cfg.jlab[0]+'" y="'+cfg.jlab[1]+'">'+cfg.jlab[2]+'</text>';
+  return {skin:skin, bones:bones, mus:mus, joint:joint, lab:lab};
+}
+
+/* おれ曲がる線にそった皮ふの輪かく（ゆび用。関節ごとに内がわがちぢみ、外がわは円弧） */
+function chainOutline(pt,r,sgn){
+  const m=pt.length, u=[], n=[];
+  for(let i=0;i<m-1;i++){
+    const dx=pt[i+1].x-pt[i].x, dy=pt[i+1].y-pt[i].y, l=Math.hypot(dx,dy)||1;
+    u.push({x:dx/l,y:dy/l}); n.push({x:-dy/l*sgn, y:dx/l*sgn});
+  }
+  const norm=function(a){while(a>Math.PI)a-=2*Math.PI; while(a<-Math.PI)a+=2*Math.PI; return a;};
+  let inn=[[pt[0].x+n[0].x*r[0], pt[0].y+n[0].y*r[0]]];
+  let out=[[pt[0].x-n[0].x*r[0], pt[0].y-n[0].y*r[0]]];
+  for(let i=1;i<m-1;i++){
+    let b={x:n[i-1].x+n[i].x, y:n[i-1].y+n[i].y}; const bl=Math.hypot(b.x,b.y)||1;
+    inn.push([pt[i].x+b.x/bl*r[i]*0.86, pt[i].y+b.y/bl*r[i]*0.86]);
+    const a0=Math.atan2(-n[i-1].y,-n[i-1].x);
+    const da=norm(Math.atan2(u[i].y,u[i].x)-Math.atan2(u[i-1].y,u[i-1].x));
+    out=out.concat(arcPts(pt[i].x,pt[i].y,r[i],a0,a0+da,6));
+  }
+  const e=m-1, ne=n[e-1], aN=Math.atan2(ne.y,ne.x);
+  inn.push([pt[e].x+ne.x*r[e], pt[e].y+ne.y*r[e]]);
+  return inn.concat(arcPts(pt[e].x,pt[e].y,r[e],aN,aN-Math.PI*sgn,10), out.slice().reverse());
+}
+
+/* ゆび：関節が3つ連なって曲がる */
+function fingerSVG(cfg,k){
+  const c=cfg.chain, m=c.length, pt=[{x:cfg.A[0],y:cfg.A[1]}], ang=[];
+  let acc=0;
+  for(let i=0;i<m;i++){ acc+=c[i].bend*k; ang.push(acc); }
+  let cur={x:cfg.P[0],y:cfg.P[1]};
+  pt.push(cur);
+  for(let i=0;i<m;i++){
+    const a=ang[i]*Math.PI/180;
+    cur={x:cur.x+c[i].len*Math.cos(a), y:cur.y+c[i].len*Math.sin(a)};
+    pt.push(cur);
+  }
+  const r=cfg.r.slice();
+  const pts=chainOutline(pt,r,1);
+  let s='<path d="M'+ptsJoin(pts)+' Z" fill="#fff4e9" stroke="var(--skinL)" stroke-width="2" stroke-linejoin="round"/>';
+  s+='<rect class="sk" x="'+cfg.palm[0]+'" y="'+cfg.palm[1]+'" width="'+cfg.palm[2]+'" height="'+cfg.palm[3]+'" rx="28"/>';
+  s+='<path class="bn" d="'+hullPath({x:pt[0].x-26,y:pt[0].y-14},{x:pt[1].x,y:pt[1].y-3},9,7.5)+'"/>'
+    +'<path class="bn" d="'+hullPath({x:pt[0].x-26,y:pt[0].y+12},{x:pt[1].x,y:pt[1].y+11},8,6.5)+'"/>';
+  for(let i=1;i<pt.length-1;i++){
+    s+='<path class="bn" d="'+hullPath(pt[i],pt[i+1],r[i]*0.5,r[i+1]*0.55)+'"/>';
+  }
+  for(let i=1;i<pt.length-1;i++){
+    s+='<circle class="fj" cx="'+pt[i].x.toFixed(1)+'" cy="'+pt[i].y.toFixed(1)+'" r="5.5"/>';
+  }
+  s+='<text class="cap" x="'+cfg.note[0]+'" y="'+cfg.note[1]+'">1本のゆびに関節が3つ</text>';
+  return '<svg viewBox="0 0 360 300" xmlns="http://www.w3.org/2000/svg">'+s+stickFig(cfg.loc)+'</svg>';
+}
+
+/* あご：横から見た頭。頭がい骨（動かない）と下あご（動く）。
+   k=0 …口が開いた状態、k=1 …口が閉じた状態。
+   あ ＝ かむきん肉（こめかみ＋ほお）。ちぢむと口が閉じる。
+   い ＝ あごの下のきん肉。ちぢむと口が開く。 */
+const JAW_P={x:188,y:130};                    /* あごの関節（耳のすぐ前） */
+const JAW_OPEN=20;                            /* 口を開ける角度 */
+function jawSVG(cfg,k){
+  const ang=JAW_OPEN*(1-k);
+  const R=function(x,y){return rotPt({x:x,y:y},JAW_P,ang);};
+  const spin='<g transform="rotate('+ang.toFixed(2)+' '+JAW_P.x+' '+JAW_P.y+')">';
+
+  /* ---- 皮ふ：頭（動かない）と下あご（動く）の2まい ---- */
+  const head=[
+    [180,10],[224,16],[254,34],[274,62],[282,94],[278,112],    /* ひたい〜まゆ */
+    [302,136],[320,158],[300,166],[294,176],                   /* 鼻〜上くちびる */
+    [250,181],[214,177],[192,152],[188,130],                   /* 口の線〜関節 */
+    [174,144],[166,168],[160,192],[170,214],[180,238],         /* 耳の下〜くびの前 */
+    [184,266],[184,292],[142,292],[140,264],[136,236],
+    [128,208],[118,178],[112,144],[114,106],[126,66],[148,30]  /* 後頭部 */
+  ];
+  const jaw=[
+    [188,130],[198,162],[218,176],[254,182],[292,186],[304,194],[306,212],
+    [294,228],[266,236],[238,236],[212,222],[196,196]
+  ];
+  const skin='<path class="sk" d="'+curvePath(head)+'"/>'
+           + spin+'<path class="sk" d="'+curvePath(jaw)+'"/></g>';
+
+  /* ---- ほね ---- */
+  const cran=[
+    [186,34],[226,40],[254,58],[270,86],[276,104],[264,112],   /* ひたい〜鼻の根もと */
+    [280,128],[290,146],[272,150],[290,162],[292,170],         /* 鼻のあな〜上あご */
+    [254,172],[224,168],[202,156],[190,138],
+    [176,142],[158,136],[144,120],[138,96],[142,70],[158,46]
+  ];
+  let bones='<path class="bn" d="'+curvePath(cran)+'"/>'
+   + '<ellipse cx="248" cy="116" rx="17" ry="14" fill="#e3d8bd" stroke="var(--boneL)" stroke-width="1.4"/>'
+   + '<path d="M276,146 L288,162 L268,162 Z" fill="#e3d8bd" stroke="var(--boneL)" stroke-width="1.2"/>'
+   + '<path class="bn" d="'+hullPath(P(194,138),P(248,146),4.2,3.8)+'"/>'; /* ほおぼね */
+  for(let i=0;i<7;i++){                                        /* 上の歯（下に向かってはえる） */
+    const x=226+i*10.6, y=168+i*0.5;
+    bones+='<rect class="bn" x="'+(x-4.4).toFixed(1)+'" y="'+y.toFixed(1)+'" width="8.8" height="12" rx="2.6"/>';
+  }
+  bones+=spin
+   + '<path class="bn" d="'+hullPath(P(212,122),P(200,186),4.5,9)+'"/>'    /* とっき */
+   + '<path class="bn" d="'+hullPath(P(189,133),P(199,200),8.5,11)+'"/>'   /* えだ */
+   + '<path class="bn" d="'+hullPath(P(198,202),P(298,200),12,8.5)+'"/>';  /* 下あごの体 */
+  for(let i=0;i<7;i++){
+    const x=228+i*10.6, y=180+i*0.5;
+    bones+='<rect class="bn" x="'+(x-4.4).toFixed(1)+'" y="'+y.toFixed(1)+'" width="8.8" height="12" rx="2.6"/>';
+  }
+  bones+='</g>';
+
+  /* ---- きん肉（あ＝こめかみ・ほお／い＝あごの下） ---- */
+  const spT=spindleV(P(166,50),R(208,132),4+4*k,{x:1,y:0},32+11*k);          /* こめかみ */
+  const spM=spindleV(P(234,152),R(216,208),3+4*k,{x:1,y:0},26+10*k);         /* ほお（あ） */
+  const spD=spindleV(P(194,224),R(280,214),3+4*(1-k),{x:0,y:1},13+9*(1-k));  /* あごの下（い） */
+  const mus=paintMus(spT,k)+paintMus(spM,k)+paintMus(spD,1-k);
+
+  const joint='<circle cx="'+JAW_P.x+'" cy="'+JAW_P.y+'" r="15" fill="none" stroke="#f5821f" stroke-width="2.6" stroke-dasharray="5 4"/>'
+    + '<line class="ldr" x1="174" y1="120" x2="146" y2="84"/>'
+    + '<text class="cap" x="142" y="80" text-anchor="end">関節（あご）</text>';
+  const lab=labelMark('あ',104,262,spM.mx,spM.my)+labelMark('い',336,246,spD.mx,spD.my);
+  return '<svg viewBox="0 0 360 300" xmlns="http://www.w3.org/2000/svg">'
+    + skin+bones+mus+joint+lab+stickFig(cfg.loc)+'</svg>';
+}
+
+/* くび：正面から見た首。けいついが下から上へ少しずつ回るので、頭がかたむく。
+   k=0 …い のがわへ、k=1 …あ のがわへかたむく。 */
+const NECK_C={x:200,y:196}, NECK_A=12;
+function neckSVG(cfg,k){
+  const ang=NECK_A-2*NECK_A*k;
+  const R=function(x,y,f){return rotPt({x:x,y:y},NECK_C,ang*(f===undefined?1:f));};
+  const RA=function(a){return a.map(function(p){const q=R(p[0],p[1]);return [q.x,q.y];});};
+  const spin='<g transform="rotate('+ang.toFixed(2)+' '+NECK_C.x+' '+NECK_C.y+')">';
+
+  /* ---- 皮ふ：頭とくび（かたむく）＋かた・むね（動かない） ---- */
+  const neck=[
+    [146,8],[142,40],[134,48],[128,62],[132,78],[146,86],[158,102],[166,118],
+    [168,146],[170,178],[172,214],[174,246],
+    [226,246],[228,214],[230,178],[232,146],
+    [234,118],[242,102],[254,86],[268,78],[272,62],[266,48],[258,40],[254,8]
+  ];
+  const torso=[
+    [58,298],[56,266],[64,238],[82,216],[110,202],[142,194],[168,190],
+    [184,199],[200,207],[216,199],[232,190],
+    [258,194],[290,202],[318,216],[336,238],[344,266],[342,298]
+  ];
+  const skin=spin+'<path class="sk" d="'+curvePath(neck)+'"/></g>'
+           + '<path class="sk" d="'+curvePath(torso)+'"/>';
+
+  /* ---- ほね ---- */
+  let bones=spin
+   + '<path class="bn" d="M156,4 C158,64 168,88 200,94 C232,88 242,64 244,4'
+   + ' L230,4 C228,56 220,76 200,80 C180,76 172,56 170,4 Z"/>';          /* 下あご */
+  for(let i=0;i<11;i++){                                                  /* 歯 */
+    const a=(32+116*i/10)*Math.PI/180;
+    const cx=200+40*Math.cos(a), cy=12+62*Math.sin(a), deg=a*180/Math.PI-90;
+    bones+='<rect class="bn" x="'+(cx-3.6).toFixed(1)+'" y="'+(cy-5.5).toFixed(1)
+      +'" width="7.2" height="11" rx="2.2" transform="rotate('+deg.toFixed(1)+' '+cx.toFixed(1)+' '+cy.toFixed(1)+')"/>';
+  }
+  bones+='</g>';
+  for(let i=0;i<5;i++){                                     /* けいつい（下ほど回らない） */
+    const y=108+i*20, f=(188-y)/80;
+    const a=R(189,y,f), b=R(211,y,f), l=R(178,y-3,f), r=R(222,y-3,f);
+    bones+='<path class="bn" d="'+hullPath(a,b,8.5,8.5)+'"/>'
+      + '<path class="bn" d="'+hullPath(a,l,5,3.6)+'"/>'
+      + '<path class="bn" d="'+hullPath(b,r,5,3.6)+'"/>';
+  }
+  bones+='<path class="bn" d="'+hullPath(P(196,209),P(150,199),5.5,5.5)+'"/>'   /* さこつ */
+   + '<path class="bn" d="'+hullPath(P(150,199),P(112,198),5.5,6)+'"/>'
+   + '<path class="bn" d="'+hullPath(P(204,209),P(250,199),5.5,5.5)+'"/>'
+   + '<path class="bn" d="'+hullPath(P(250,199),P(288,198),5.5,6)+'"/>'
+   + '<path class="bn" d="'+hullPath(P(104,204),P(98,232),13,11)+'"/>'          /* かたのほね */
+   + '<path class="bn" d="'+hullPath(P(296,204),P(302,232),13,11)+'"/>'
+   + '<path class="bn" d="'+hullPath(P(200,210),P(200,256),9,11)+'"/>'          /* きょう骨 */
+   + '<path class="rib" d="M196,222 C170,224 146,236 132,254"/>'
+   + '<path class="rib" d="M196,242 C172,246 152,260 140,280"/>'
+   + '<path class="rib" d="M204,222 C230,224 254,236 268,254"/>'
+   + '<path class="rib" d="M204,242 C228,246 248,260 260,280"/>';
+
+  /* ---- きん肉（くびの左右のすじ。耳の後ろからむねのまん中へ） ---- */
+  const spA=spindleV(R(152,94),P(193,211),3+4*k,{x:-1,y:0},19+10*k);
+  const spI=spindleV(R(248,94),P(207,211),3+4*(1-k),{x:1,y:0},19+10*(1-k));
+  const mus=paintMus(spI,1-k)+paintMus(spA,k);
+
+  let joint='';
+  [138,178].forEach(function(y){
+    const q=R(200,y,(188-y)/80);
+    joint+='<circle cx="'+q.x.toFixed(1)+'" cy="'+q.y.toFixed(1)+'" r="12" fill="none" stroke="#f5821f" stroke-width="2.6" stroke-dasharray="5 4"/>';
+  });
+  joint+='<line class="ldr" x1="216" y1="184" x2="264" y2="230"/>'
+    + '<text class="cap" x="268" y="234">関節（くび）</text>';
+  const lab=labelMark('あ',94,116,spA.mx,spA.my)+labelMark('い',328,116,spI.mx,spI.my);
+  return '<svg viewBox="0 0 360 300" xmlns="http://www.w3.org/2000/svg">'
+    + skin+bones+mus+joint+lab+stickFig(cfg.loc)+'</svg>';
+}
+
+/* 図の左下の小さな人型（体のどこの話かをオレンジの点で示す） */
 function stickFig(loc){
   return `<g><circle cx="44" cy="205" r="11" fill="none" stroke="#b6c6d2" stroke-width="5"/>`+
     `<path class="stick" d="M44,216 L44,258 M44,226 L26,246 M44,226 L62,246 M44,258 L32,290 M44,258 L56,290"/>`+
     `<circle class="locdot" cx="${loc[0]}" cy="${loc[1]}" r="7"/></g>`;
 }
 function partSVG(cfg,k){
-  let s=cfg.fixedSkin;
-  if(cfg.chain){
-    let inner='', dots='';
-    for(let i=cfg.chain.length-1;i>=0;i--){
-      const c=cfg.chain[i];
-      inner=`<g transform="rotate(${(c.bend*k).toFixed(1)} ${c.P[0]} ${c.P[1]})">${c.skin}${c.bn}`+
-            `<circle class="jd" cx="${c.P[0]}" cy="${c.P[1]}" r="8"/>${inner}</g>`;
-    }
-    s+=inner+cfg.fixedBone+dots;
-    return `<svg viewBox="0 0 360 300" xmlns="http://www.w3.org/2000/svg">${s}${stickFig(cfg.loc)}</svg>`;
-  }
-  const P={x:cfg.P[0],y:cfg.P[1]}, ang=cfg.bend*k, rot=`rotate(${ang.toFixed(1)} ${P.x} ${P.y})`;
-  let mus='', lab='';
-  [cfg.m1,cfg.m2].forEach(function(m,i){
-    if(!m) return;
-    const t=(i===0)?k:1-k;
-    const o={x:m.o[0],y:m.o[1]}, p=rotPt({x:m.p[0],y:m.p[1]},P,ang);
-    const b=band2(o,p,8+18*t,m.dir);
-    const c=lerpColor('#f8cfc0','#d3502c',t), w=15+13*t;
-    mus+=`<path d="${b.d}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round"/>`;
-    const lp=m.labPos||[b.mx+m.dir[0]*(w/2+24),b.my+m.dir[1]*(w/2+24)];
-    lab+=labelMark(m.lab,lp[0],lp[1],b.mx,b.my);
-  });
-  return `<svg viewBox="0 0 360 300" xmlns="http://www.w3.org/2000/svg">
-    ${cfg.fixedSkin}<g transform="${rot}">${cfg.moveSkin}</g>
-    ${cfg.musTop?'':mus}
-    ${cfg.fixedBone}<g transform="${rot}">${cfg.moveBone}</g>
-    ${cfg.musTop?mus:''}
-    <circle class="jd" cx="${P.x}" cy="${P.y}" r="10"/>
-    ${lab}${stickFig(cfg.loc)}
-  </svg>`;
+  if(cfg.kind==='finger') return fingerSVG(cfg,k);
+  if(cfg.kind==='jaw')    return jawSVG(cfg,k);
+  if(cfg.kind==='neck')   return neckSVG(cfg,k);
+  const g=limbPieces(cfg,k);
+  return '<svg viewBox="0 0 360 300" xmlns="http://www.w3.org/2000/svg">'
+    + g.skin+g.bones+g.mus+g.joint+g.lab+stickFig(cfg.loc)+'</svg>';
 }
-var fPart=0, fT=0, fRaf=null, fDoneList=[];
+
+const FPARTS=[
+ {id:'hiji',name:'ひじ',loc:[35,236],kind:'limb',
+  A:[124,166],P:[218,166],B:[306,166],bend:-100,
+  rA:29,rP:24,rB:20,bA:13,bP:10.5,twin:true,tip:'fist',bulge:13,jr:14,jlab:[250,226,'関節（ひじ）'],
+  m1:{o:[6,15],p:[28,5],lab:'あ',labPos:[110,48]},
+  m2:{o:[4,-12],p:[0,-11],w:17,dw:12,lab:'い',labPos:[146,280]},
+  txt:'ひじの関節をまたいで、2つのきん肉がほねについています。あ がちぢむと曲がり、い がちぢむとのびます。',
+  mission:'ひじを曲げて、うでの上がわのきん肉をさわってみよう。かたくふくらむのがわかるかな。のばすと、こんどは下がわがかたくなるよ。'},
+ {id:'hiza',name:'ひざ',loc:[38,274],kind:'limb',
+  A:[206,48],P:[206,144],B:[206,232],bend:92,
+  rA:38,rP:29,rB:21,bA:17,bP:12,twin:true,tip:'foot',bulge:10,jr:15,jlab:[262,182,'関節（ひざ）'],
+  m1:{o:[14,22],p:[30,9],lab:'あ',labPos:[96,74]},
+  m2:{o:[12,-24],p:[26,-10],lab:'い',labPos:[318,76]},
+  txt:'ひざもうでと同じしくみです。ももの後ろ（あ）がちぢむと曲がり、ももの前（い）がちぢむとのびます。',
+  mission:'いすにすわって、ひざをのばしたり曲げたりしよう。ももの前と後ろ、どちらがかたくなるかな。'},
+ {id:'ago',name:'あご',loc:[44,214],kind:'jaw',
+  txt:'あごの関節は耳のすぐ前にあります。こめかみとほおのきん肉（あ）がちぢむと下あごが引き上げられて口が閉じ、あごの下のきん肉（い）がちぢむと下あごが下がって口が開きます。',
+  mission:'口を大きく開けたり閉じたりしよう。耳の前とこめかみに手をあてると、かたくなったりゆるんだりするのがわかるよ。'},
+ {id:'yubi',name:'ゆび',loc:[26,246],kind:'finger',
+  A:[116,148],P:[190,148],r:[24,21,17,14,10],palm:[58,102,102,92],note:[176,66],
+  chain:[{len:62,bend:50},{len:48,bend:52},{len:36,bend:44}],
+  txt:'1本のゆびには関節が3つもあります。関節の数が多いほど、細かい動きができます。ゆびを動かすきん肉は、うでの中にあってすじで引っぱっています。',
+  mission:'ゆびを1本ずつゆっくり曲げてみよう。1本のゆびが何か所で曲がるか、数えてみよう。'},
+ {id:'kubi',name:'くび',loc:[44,219],kind:'neck',
+  txt:'頭とせぼねのつなぎ目も関節です。くびのほねは1つではなく、小さなほねがつみ木のように重なっていて、そのつなぎ目ぜんぶが関節です。左右のきん肉が交たいでちぢんで、頭をかたむけます。',
+  mission:'首を右や左にゆっくりかたむけよう。かたむけたがわの首すじが、太くかたくなるのがわかるかな。'}
+];
+
+var fPart=0, fT0=0, fRaf=null, fDoneList=[];
+const F_DUR=2200;                       /* 片道の時間（ミリ秒）：タブ3とそろえる */
 function partLoop(){
   if(!$('#pf').classList.contains('on')){fRaf=null;return;}
-  fT+=0.028;
-  const k=0.5-0.5*Math.cos(fT);
+  const u=((performance.now()-fT0)%(F_DUR*2))/F_DUR;
+  const x=(u<1)?u:2-u;
+  const k=x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;   /* タブ3と同じイージング */
   $('#stageF').innerHTML=partSVG(FPARTS[fPart],k);
   fRaf=requestAnimationFrame(partLoop);
 }
 function startPartAnim(){
   if(fRaf){cancelAnimationFrame(fRaf);fRaf=null;}
-  fT=0; fRaf=requestAnimationFrame(partLoop);
+  fT0=performance.now(); fRaf=requestAnimationFrame(partLoop);
 }
 function renderF(){
   const cfg=FPARTS[fPart];
@@ -1751,7 +2310,10 @@ function renderF(){
     const id=FPARTS[fPart].id, at=fDoneList.indexOf(id);
     if(at>=0) fDoneList.splice(at,1); else fDoneList.push(id);
     renderF();
-    if(fDoneList.length===FPARTS.length) $('#fText').textContent='ぜんぶためせたね！ 体のどこでも、ほね・関節・きん肉の同じしくみで動いています。';
+    if(fDoneList.length===FPARTS.length){
+      $('#fText').textContent='ぜんぶためせたね！ 体のどこでも、ほね・関節・きん肉の同じしくみで動いています。';
+      praise('#pf .stage');
+    }
   });
   const cfg=FPARTS[0];
   $('#fTitle').textContent=cfg.name; $('#fText').textContent=cfg.txt;
@@ -1788,7 +2350,7 @@ function renderQ(){
         if(j===q.a) x.classList.add('correct');
         else if(j===i) x.classList.add('wrong');
       });
-      if(i===q.a){score++; $('#qFb').innerHTML='<b>せいかい！</b> '+q.e;}
+      if(i===q.a){score++; praise('#q','30%'); $('#qFb').innerHTML='<b>せいかい！</b> '+q.e;}
       else $('#qFb').innerHTML='<b>おしい！</b> '+q.e;
       $('#qScore').textContent='せいかい '+score+'こ';
       $('#qNext').disabled=false;
@@ -1803,7 +2365,8 @@ $('#qNext').addEventListener('click',function(){
   $('#qOpts').innerHTML='';
   $('#qFb').innerHTML= score===QUIZ.length
     ? 'かんぺき！ ほね・関節・きん肉のはたらきがよくわかっているね。'
-    : 'まちがえた問題は、1〜4のタブでもう一度たしかめてみよう。';
+    : 'まちがえた問題は、ほかのタブでもう一度たしかめてみよう。';
+  if(score===QUIZ.length) praise('#q','52%');
   const b=document.createElement('button'); b.className='qbtn'; b.textContent='もう一度';
   b.addEventListener('click',function(){qi=0;score=0;renderQ();});
   $('#qOpts').appendChild(b);
